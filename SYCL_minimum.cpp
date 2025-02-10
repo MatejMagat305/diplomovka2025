@@ -1,11 +1,9 @@
-#include <CL/sycl.hpp>
+#include <sycl/sycl.hpp>
 #include <iostream>
 #include <vector>
 #include <random>
 #include <limits>
 #include <algorithm> // Potrebné pre std::min_element
-
-namespace sycl = cl::sycl;
 
 int main() {
     sycl::queue q;
