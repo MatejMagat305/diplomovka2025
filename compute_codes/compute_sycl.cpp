@@ -89,12 +89,12 @@ sycl::queue* q = nullptr;
         sycl::event e4 = q->memcpy(agents, m.agents, m.agentCount * sizeof(Agent));
         sycl::event e5 = q->memcpy(width_height_loaderCount_unloaderCount_agentCount_minSize, temp, SIZE_INDEXES * sizeof(int));
         sycl::event e6 = (*q).memset(pathSizes, 0, m.agentCount * sizeof(int));
-        sycl::event::wait({ e1, e2, e3, e4, e5, e6 });
+        sycl::event::wait_and_throw({ e1, e2, e3, e4, e5, e6 });
 
     }
 
     inline void freePtr(void** ptr) {
-        if (ptr != nullptr) {
+        if (ptr != nullptr && *ptr != nullptr) {
             sycl::free(*ptr, *q);
             *ptr = nullptr;
         }
@@ -130,11 +130,16 @@ sycl::queue* q = nullptr;
         const int moveSize = width_height_loaderCount_unloaderCount_agentCount_minSize[MIN_INDEX];
         const int width = width_height_loaderCount_unloaderCount_agentCount_minSize[WIDTHS_INDEX];
         const int height = width_height_loaderCount_unloaderCount_agentCount_minSize[HEIGHTS_INDEX];
-        const int mapSize = width * height;
-        int offset = id * mapSize;
-        Position& p = paths[offset + moveSize - 1];
-        a.x = p.x;
-        a.y = p.y;
+        int offset = id * width * height;
+        if (moveSize > 0) {
+            Position& p = paths[offset + moveSize - 1];
+            a.x = p.x;
+            a.y = p.y;
+        }
+        else {
+            return;
+        }
+
         if (a.direction == AGENT_LOADER) {
             Position& loader = loaderPosition[a.loaderCurrent];
             if (a.x == loader.x && a.y == loader.y) {
@@ -166,7 +171,7 @@ sycl::queue* q = nullptr;
         int workSize = q->get_device().get_info<sycl::info::device::max_work_group_size>();
         // cesty
         auto e = (*q).submit([&](sycl::handler& h) {
-            h.parallel_for(sycl::range<1>(workSize), [=](sycl::id<1> idx) {
+            h.parallel_for(sycl::range<1>(std::min(workSize, m.agentCount)), [=](sycl::id<1> idx) {
                 const int agentsize = width_height_loaderCount_unloaderCount_agentCount_minSize[AGENTS_INDEX];
                 if (idx[0]>agentsize-1)      {
                     return;
@@ -178,7 +183,7 @@ sycl::queue* q = nullptr;
         // kolízie
         auto collisionEvent = (*q).submit([&](sycl::handler& h) {
             h.depends_on(e);
-            sycl::nd_range<1> ndRange(sycl::range<1>(workSize), sycl::range<1>(m.agentCount));
+            sycl::nd_range<1> ndRange(sycl::range<1>(std::min(workSize, m.agentCount)), sycl::range<1>(std::min(workSize, m.agentCount)));
             h.parallel_for(ndRange, [=](sycl::nd_item<1> item) {
                 const int agentsize = width_height_loaderCount_unloaderCount_agentCount_minSize[AGENTS_INDEX];
                 if (item.get_global_id(0) > agentsize - 1) {
@@ -192,11 +197,11 @@ sycl::queue* q = nullptr;
 
         collisionEvent.wait();
         // Skopírovanie výsledkov do CPU
-        q->memcpy(m.agentPaths, paths, m.agentCount * 100 * sizeof(Position)).wait();
+        q->memcpy(m.agentPaths, paths, m.agentCount * m.width * m.height * sizeof(Position)).wait();
         q->memcpy(m.agentPathSizes, pathSizes, m.agentCount * sizeof(int)).wait();
         // pohyb o minimálnu cestu 
         auto moveTO = (*q).submit([&](sycl::handler& h) {
-            h.parallel_for(sycl::range<1>(workSize), [=](sycl::id<1> idx) {
+            h.parallel_for(sycl::range<1>(std::min(workSize, m.agentCount)), [=](sycl::id<1> idx) {
                 const int agentsize = width_height_loaderCount_unloaderCount_agentCount_minSize[AGENTS_INDEX];
                 if (idx[0] > agentsize - 1) {
                     return;
@@ -240,4 +245,5 @@ std::string initializeSYCL(Map& m) {
 
 void destroySYCL() {
     internal::deleteGPUMem();
+    internal::q = nullptr;
 }

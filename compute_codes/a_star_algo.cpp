@@ -66,6 +66,10 @@ namespace internal {
     void computePathForAgent(int agentId, int* width_height_loaderCount_unloaderCount_agentCount_minSize,
         char* grid, Agent* agents, Position* loaderPosition, Position* unloaderPosition,
         Position* paths, int* pathSizes, int* fCost, int* gCost, bool* visited, Position* cameFrom, Position* openList) {
+        int sizePath = pathSizes[agentId];
+        if (sizePath != 0) {
+            return;
+        }
         const int width = width_height_loaderCount_unloaderCount_agentCount_minSize[WIDTHS_INDEX];
         const int height = width_height_loaderCount_unloaderCount_agentCount_minSize[HEIGHTS_INDEX];
         const int mapSize = width * height;
@@ -78,7 +82,7 @@ namespace internal {
         Position* pathsLocal = &paths[offset];
 
         Agent a = agents[agentId];
-        Position start = a.position;
+        Position start = Position{a.x, a.y};
         Position goal = (a.direction == AGENT_LOADER) ? loaderPosition[a.loaderCurrent] : unloaderPosition[a.unloaderCurrent];
 
         MyHeap myHeap{ &openList[offset], 0 };

@@ -80,7 +80,7 @@ namespace internal {
 
         for (int i = 0; i < m.loaderCount; ++i) {
             Position loader = m.loaderPosition[i];
-            int distance = ManhattanHeuristic(agent.position, loader);
+            int distance = ManhattanHeuristic(Position{agent.x, agent.y}, loader);
             if (distance < minDistance) {
                 minDistance = distance;
                 closestLoader = loader;
@@ -91,7 +91,7 @@ namespace internal {
     }
     std::vector<Position> ComputeASTAR(Map& m, int agentID, const std::vector<Constraint>& constraints) {
         Agent& a = m.agents[agentID];
-        Position start = a.position;
+        Position start = Position{a.x, a.y};
         Position goal = (a.direction == AGENT_LOADER)
             ? m.loaderPosition[a.loaderCurrent]
             : m.unloaderPosition[a.unloaderCurrent];
