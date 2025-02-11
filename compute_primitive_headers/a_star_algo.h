@@ -9,7 +9,11 @@ namespace internal {
 #define AGENTS_INDEX 4
 #define MIN_INDEX 5
 #define SIZE_INDEXES 6
-
+    void initializeCostsAndHeap(int* gCost, int* fCost, bool* visited,
+        MyHeap& myHeap, Position start, int mapSize, int width);
+    void runAStar(int* gCost, int* fCost, bool* visited, Position* cameFrom,
+        char* grid, MyHeap& myHeap, Position start, Position goal, int width, int height);
+    int reconstructPath(Position* paths, Position* cameFrom, Position start, Position goal);
     void computePathForAgent(int agentId, int* width_height_loaderCount_unloaderCount_agentCount_minSize,
         char* grid, Agent* agents, Position* loaderPosition, Position* unloaderPosition,
         Position* paths, int* pathSizes, int* fCost, int* gCost, bool* visited, Position* cameFrom, Position* openList);
