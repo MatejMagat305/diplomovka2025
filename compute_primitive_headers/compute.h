@@ -13,5 +13,5 @@ namespace internal {
 
 double computeCPU(AlgorithmType which, Map& m, int numThreads);
 double computeSYCL(AlgorithmType which, Map& m);
-
-void deleteCPUStruct();
+std::string initializeSYCL(Map& m);
+void destroySYCL();
