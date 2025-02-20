@@ -1,3 +1,5 @@
+// NEPOUŽÍVAŤ std::fill - std::fill MÁ MÁLOKTORÁ INPLEMENTÁCIA
+
 #include <sycl/sycl.hpp>
 #include <iostream>
 #include <algorithm> // Pre std::fill
