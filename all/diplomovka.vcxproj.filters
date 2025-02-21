@@ -1,0 +1,138 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="temp">
+      <UniqueIdentifier>{b7767615-2385-4a50-9c62-a165a36f06a8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="compute headers">
+      <UniqueIdentifier>{37a6b992-2591-45c3-9a83-d3d303c95ab9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="compute souce">
+      <UniqueIdentifier>{6fe9ec2f-37f7-4400-8afa-c312ce7ba2f3}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="PROTOASTAR.cpp">
+      <Filter>temp</Filter>
+    </ClCompile>
+    <ClCompile Include="PROTOdiinjkstra.cpp">
+      <Filter>temp</Filter>
+    </ClCompile>
+    <ClCompile Include="loadScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="diplomovka.cpp">
+      <Filter>temp</Filter>
+    </ClCompile>
+    <ClCompile Include="changeScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mainScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="parameterScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="map.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="simulation.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="simulationScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="viewScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="solve_conflicts.cpp">
+      <Filter>compute souce</Filter>
+    </ClCompile>
+    <ClCompile Include="a_star_algo.cpp">
+      <Filter>compute souce</Filter>
+    </ClCompile>
+    <ClCompile Include="compute_parallel_cpu.cpp">
+      <Filter>compute souce</Filter>
+    </ClCompile>
+    <ClCompile Include="compute_sycl.cpp">
+      <Filter>compute souce</Filter>
+    </ClCompile>
+    <ClCompile Include="PROTOCPU.cpp">
+      <Filter>temp</Filter>
+    </ClCompile>
+    <ClCompile Include="compute_parallel_cpu_primitive.cpp">
+      <Filter>compute souce</Filter>
+    </ClCompile>
+    <ClCompile Include="move_agent.cpp">
+      <Filter>compute souce</Filter>
+    </ClCompile>
+    <ClCompile Include="PROTOHybrid.cpp">
+      <Filter>temp</Filter>
+    </ClCompile>
+    <ClCompile Include="primitivecpu.cpp">
+      <Filter>temp</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="agent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="changeScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="loadScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mainScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="map.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="parameterScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="simulationScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="viewScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="simulation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="a_star_algo.h">
+      <Filter>compute headers</Filter>
+    </ClInclude>
+    <ClInclude Include="compute.h">
+      <Filter>compute headers</Filter>
+    </ClInclude>
+    <ClInclude Include="solve_conflicts.h">
+      <Filter>compute headers</Filter>
+    </ClInclude>
+    <ClInclude Include="heap_primitive.h">
+      <Filter>compute headers</Filter>
+    </ClInclude>
+    <ClInclude Include="move_agent.h">
+      <Filter>compute headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+</Project>
