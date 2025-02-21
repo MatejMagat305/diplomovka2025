@@ -14,14 +14,17 @@
 #include <limits>
 #include "a_star_algo.h"
 #include "raylib.h"
-#include "agent.h"
+#include "fill_init_convert.h"
+
+
+Position selected = Position{ -1,-1 };
 
 
 void Map::saveGrid(std::stringstream* outputString) {
-    (*outputString) << width << " " << height << "\n";
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            if(!((*outputString) << m.grid[getTrueIndexGrid(width, x, y)])){
+    (*outputString) << CPUMemory.width << " " << CPUMemory.height << "\n";
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            if(!((*outputString) << CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)])){
                 throw std::logic_error("Error at save grid char");
             }
         }
@@ -32,9 +35,9 @@ void Map::saveGrid(std::stringstream* outputString) {
 }
 
 void Map::saveAgents(std::stringstream* outputString) {
-    (*outputString) << agentCount << "\n";
-    for (int i = 0; i < agentCount; i++) {
-        Agent &agent = m.agents[i];
+    (*outputString) << CPUMemory.agentCount << "\n";
+    for (int i = 0; i < CPUMemory.agentCount; i++) {
+        Agent &agent = CPUMemory.agents[i];
         Color& c = colorAgents[i];
         if(!((*outputString) << agent.x << " " 
             << agent.y << " " << agent.loaderCurrent << " "
@@ -43,15 +46,17 @@ void Map::saveAgents(std::stringstream* outputString) {
             << "\n")) {
             throw std::logic_error("Error at save agent data");
         }
-        int length = m.pathSizesAgent[i];
+        int length = CPUMemory.agents[i].sizePath;
         if (length < 0){
             length = 0;
         }
         if(!((*outputString) << length << "\n")) {
             throw std::logic_error("Error at save agent length path");
         }
+        int offset = CPUMemory.width * CPUMemory.height;
+        Position* path = &CPUMemory.pathsAgent[i * offset];
         for (int j = 0; j < length; j++){
-            Position& p = m.pathsAgent[getTrueIndexPath(i, j)];
+            Position& p = path[j];
             if(!((*outputString) << p.x << " " << p.y << " ")) {
                 throw std::logic_error("Error at save agent path position");
             }
@@ -63,20 +68,20 @@ void Map::saveAgents(std::stringstream* outputString) {
 }
 
 void Map::saveDocks(std::stringstream* outputString){
-    if(!((*outputString) << loaderCount << "\n")) {
+    if(!((*outputString) << CPUMemory.loaderCount << "\n")) {
         throw std::logic_error("error at save count of loader");
     }
-    for (int i = 0; i < loaderCount; i++) {
-        Position& position = m.loaderPosition[i];
+    for (int i = 0; i < CPUMemory.loaderCount; i++) {
+        Position& position = CPUMemory.loaderPosition[i];
         if(!((*outputString) << position.x << position.y << " ")) {
             throw std::logic_error("error at save position of loader");
         }
     }
-    if(!((*outputString) << "\n" << unloaderCount << "\n")) {
+    if(!((*outputString) << "\n" << CPUMemory.unloaderCount << "\n")) {
         throw std::logic_error("error at save count of unloader");
     };
-    for (int i = 0; i < unloaderCount; i++) {
-        Position& position = m.unloaderPosition[i];
+    for (int i = 0; i < CPUMemory.unloaderCount; i++) {
+        Position& position = CPUMemory.unloaderPosition[i];
         if(!((*outputString) << position.x << position.y << " ")) {
             throw std::logic_error("error at save position of unloader");
         }
@@ -102,26 +107,26 @@ void Map::save(const std::string& baseFilename) {
     }
 }
 void Map::loadGrid(std::stringstream* inputString) {
-    if (!(*inputString >> width >> height)) {
+    if (!(*inputString >> CPUMemory.width >> CPUMemory.height)) {
         throw std::logic_error("Load grid error reading dimensions");
     }
 
-    if (width <= 0 || height <= 0) {
+    if (CPUMemory.width <= 0 || CPUMemory.height <= 0) {
         throw std::logic_error("Load grid Invalid dimensions");
     }
 
-    m.grid = new char[height * width];
-    if (m.grid == nullptr) {
+    CPUMemory.grid = new char[CPUMemory.height * CPUMemory.width];
+    if (CPUMemory.grid == nullptr) {
         throw std::logic_error("Load grid Memory allocation failed");
     }
 
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            if (!(*inputString >> m.grid[getTrueIndexGrid(width, x, y)])) {
-                delete[] m.grid;
-                m.grid = nullptr;
-                width = 0;
-                height = 0;
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            if (!(*inputString >> CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)])) {
+                delete[] CPUMemory.grid;
+                CPUMemory.grid = nullptr;
+                CPUMemory.width = 0;
+                CPUMemory.height = 0;
                 throw std::logic_error("Load grid Error reading grid data");
             }
         }
@@ -131,21 +136,17 @@ void Map::loadGrid(std::stringstream* inputString) {
 
 
 void Map::loadAgents(std::stringstream* inputString) {
-    (*inputString) >> agentCount;
-    if (m.agents!= nullptr) {
-        delete[] m.agents;
+    (*inputString) >> CPUMemory.agentCount;
+    if (CPUMemory.agents!= nullptr) {
+        delete[] CPUMemory.agents;
     }
-    m.agents = new Agent[agentCount];
-    if (m.pathsAgent != nullptr)    {
-        delete[] m.pathsAgent;
+    CPUMemory.agents = new Agent[CPUMemory.agentCount];
+    if (CPUMemory.pathsAgent != nullptr)    {
+        delete[] CPUMemory.pathsAgent;
     }
-    m.pathsAgent = new Position[agentCount*width*height];
-    if (m.pathSizesAgent != nullptr) {
-        delete[] m.pathSizesAgent;
-    }
-    m.pathSizesAgent = new int[agentCount];
-    for (int i = 0; i < agentCount; i++) {
-        Agent& agent = m.agents[i];
+    CPUMemory.pathsAgent = new Position[CPUMemory.agentCount* CPUMemory.width* CPUMemory.height];
+    for (int i = 0; i < CPUMemory.agentCount; i++) {
+        Agent& agent = CPUMemory.agents[i];
         Color& c = colorAgents[i];
         if (!((*inputString) >> agent.x >> agent.y >> agent.loaderCurrent
             >> agent.unloaderCurrent >> agent.direction >> c.r >> c.g >> c.b >> c.a)) {
@@ -157,9 +158,11 @@ void Map::loadAgents(std::stringstream* inputString) {
         if (!((*inputString) >> length)){
             throw std::logic_error("error at load agent length path");
         }
-        m.pathSizesAgent[i] = length;
+        CPUMemory.agents[i].sizePath = length;
+        int offset = CPUMemory.width * CPUMemory.height;
+        Position* path = &CPUMemory.pathsAgent[i * offset];
         for (int j = 0; j < length; j++) {
-            Position& p = m.pathsAgent[getTrueIndexPath(i, j)];
+            Position& p = path[j];
             if (!((*inputString) >> p.x >> p.y)) {
                 throw std::logic_error("error at load position on path");
             }
@@ -169,34 +172,34 @@ void Map::loadAgents(std::stringstream* inputString) {
 }
 
 void Map::loadDocks(std::stringstream* inputString) {
-    if (m.loaderPosition != nullptr) {
-        delete[] m.loaderPosition;
+    if (CPUMemory.loaderPosition != nullptr) {
+        delete[] CPUMemory.loaderPosition;
     }
-    if (!((*inputString) >> loaderCount)){
+    if (!((*inputString) >> CPUMemory.loaderCount)){
         throw std::logic_error("error at load count of loaders");
     }
 
     inputString->ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 
-    m.loaderPosition = new Position[loaderCount];
+    CPUMemory.loaderPosition = new Position[CPUMemory.loaderCount];
 
-    for (int i = 0; i < loaderCount; i++) {
-        if (!((*inputString) >> m.loaderPosition[i].x >> m.loaderPosition[i].y)) {
+    for (int i = 0; i < CPUMemory.loaderCount; i++) {
+        if (!((*inputString) >> CPUMemory.loaderPosition[i].x >> CPUMemory.loaderPosition[i].y)) {
             throw std::logic_error("error at load position of loaders");
         }
     }
     inputString->ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    if (m.unloaderPosition != nullptr) {
-        delete[] m.unloaderPosition;
+    if (CPUMemory.unloaderPosition != nullptr) {
+        delete[] CPUMemory.unloaderPosition;
     }
-    if(!((*inputString) >> unloaderCount)) {
+    if(!((*inputString) >> CPUMemory.unloaderCount)) {
         throw std::logic_error("error at load count of unloaders");
     }
     inputString->ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-    m.unloaderPosition = new Position[unloaderCount];
+    CPUMemory.unloaderPosition = new Position[CPUMemory.unloaderCount];
 
-    for (int i = 0; i < unloaderCount; i++) {
-        if(!((*inputString) >> m.unloaderPosition[i].x >> m.unloaderPosition[i].y)) {
+    for (int i = 0; i < CPUMemory.unloaderCount; i++) {
+        if(!((*inputString) >> CPUMemory.unloaderPosition[i].x >> CPUMemory.unloaderPosition[i].y)) {
             throw std::logic_error("error at load position of unloaders");
         }
     }
@@ -222,23 +225,27 @@ void Map::load(const std::string& filename) {
     initMem();
 }
 
-Map::Map(int width, int height, int agentCount, int obstacleCount, int loaderCount, int unloaderCount) : width(width), height(height), 
-loaderCount(loaderCount), unloaderCount(unloaderCount), obstacleCount(obstacleCount), agentCount(agentCount){
+Map::Map(int width, int height, int agentCount, int obstacleCount, int loaderCount, int unloaderCount) : obstacleCount(obstacleCount){
+    CPUMemory.agentCount = agentCount;
+    CPUMemory.width = width;
+    CPUMemory.height = height;
+    CPUMemory.loaderCount = loaderCount;
+    CPUMemory.unloaderCount = unloaderCount;
     setNullptr();
     reset();
 }
 Map::Map() {
-    width = 0; height = 0; loaderCount = 0; unloaderCount = 0;
+    obstacleCount = 0;
     setNullptr();
 }
 
 void Map::setNullptr(){
-    m = {
+    CPUMemory = {
+        0, 0, 0, 0, 0,
         nullptr, nullptr, nullptr, 
         nullptr, nullptr, nullptr, 
         nullptr, nullptr, nullptr, 
         nullptr,  nullptr, nullptr, 
-        nullptr, nullptr, nullptr, 
         nullptr
     };
     colorAgents = nullptr;
@@ -249,26 +256,24 @@ Map::~Map() {
 }
 
 void Map::deleteMemory() {
-    delete[] m.grid;
-    delete[] m.loaderPosition;
-    delete[] m.unloaderPosition;
-    delete[] m.agents;
+    delete[] CPUMemory.grid;
+    delete[] CPUMemory.loaderPosition;
+    delete[] CPUMemory.unloaderPosition;
+    delete[] CPUMemory.agents;
     delete[] colorAgents;
 
-    delete[] m.stuffWHLUA;
-    delete[] m.minSize;
-    delete[] m.agents;
-    delete[] m.pathsAgent;
-    delete[] m.pathSizesAgent;
+    delete[] CPUMemory.minSize;
+    delete[] CPUMemory.agents;
+    delete[] CPUMemory.pathsAgent;
 
-    delete[] m.gCost;
-    delete[] m.fCost;
-    delete[] m.cameFrom;
-    delete[] m.visited;
+    delete[] CPUMemory.gCost;
+    delete[] CPUMemory.fCost;
+    delete[] CPUMemory.cameFrom;
+    delete[] CPUMemory.visited;
 
-    delete[] m.openList;
-    delete[] m.constrait;
-    delete[] m.numberConstrait;
+    delete[] CPUMemory.openList;
+    delete[] CPUMemory.constrait;
+    delete[] CPUMemory.numberConstrait;
 }
 
 void Map::reset() {
@@ -292,9 +297,9 @@ std::string Map::getUniqueFilename(const std::string& base) {
 }
 bool Map::isConnected() {
     std::pair<int, int> start = std::pair<int, int>{ -1, -1 };
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            if (m.grid[getTrueIndexGrid(width, x, y)] != OBSTACLE_SYMBOL) {
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] != OBSTACLE_SYMBOL) {
                 start = { x, y };
                 break;
             }
@@ -304,7 +309,12 @@ bool Map::isConnected() {
     if (start.first == -1) {
         return false;
     }
-    std::vector<std::vector<bool>> visited0 = std::vector<std::vector<bool>>(height, std::vector<bool>(width));
+    std::vector<std::vector<bool>> visited0 = std::vector<std::vector<bool>>(CPUMemory.height, std::vector<bool>(CPUMemory.width));
+    for (int i = 0; i < visited0.size(); i++) {
+        for (int j = 0;j < visited0[i].size();j++) {
+            visited0[i][j]; false;
+        }
+    }
 
     std::vector<std::pair<int, int>> stack;
     stack.push_back(start);
@@ -319,7 +329,7 @@ bool Map::isConnected() {
         for (const auto& d : directions) {
             int nx = c.first + d.first;
             int ny = c.second + d.second;
-            if (nx >= 0 && nx < width && ny >= 0 && ny < height && m.grid[getTrueIndexGrid(width, nx, ny)] != OBSTACLE_SYMBOL) {
+            if (nx >= 0 && nx < CPUMemory.width && ny >= 0 && ny < CPUMemory.height && CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, nx, ny)] != OBSTACLE_SYMBOL) {
                 if (!visited0[ny][nx]) {
                     visited0[ny][nx] = true;
                     stack.emplace_back(nx, ny);
@@ -327,9 +337,9 @@ bool Map::isConnected() {
             }
         }
     }
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            if (m.grid[getTrueIndexGrid(width, x, y)] != OBSTACLE_SYMBOL && !visited0[y][x]) {
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] != OBSTACLE_SYMBOL && !visited0[y][x]) {
                 return false;
             }
         }
@@ -338,7 +348,7 @@ bool Map::isConnected() {
 }
 
 bool Map::is_need_init() {
-    if (m.grid == nullptr || m.agents == nullptr || m.loaderPosition == nullptr || m.unloaderPosition == nullptr) {
+    if (CPUMemory.grid == nullptr || CPUMemory.agents == nullptr || CPUMemory.loaderPosition == nullptr || CPUMemory.unloaderPosition == nullptr) {
         return true;
     }
     // Håbkové preh¾adávanie
@@ -347,14 +357,14 @@ bool Map::is_need_init() {
 
 void Map::findFree(int& x, int& y) {
     do {
-        x = rand() % width;
-        y = rand() % height;
-    } while (m.grid[getTrueIndexGrid(width, x, y)] != '.');
+        x = rand() % CPUMemory.width;
+        y = rand() % CPUMemory.height;
+    } while (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] != '.');
 }
 
 bool Map::isAgentIn(int x, int y, int i) {
     for (int j = 0; j < i; j++){
-        if (m.agents[j].x == x && m.agents[j].y == y) {
+        if (CPUMemory.agents[j].x == x && CPUMemory.agents[j].y == y) {
             return true;
         }
     }
@@ -362,15 +372,15 @@ bool Map::isAgentIn(int x, int y, int i) {
 }
 
 void Map::initAgents() {
-    if (m.agents != nullptr) {
-        delete[] m.agents;
+    if (CPUMemory.agents != nullptr) {
+        delete[] CPUMemory.agents;
     }
-    m.agents = new Agent[agentCount];
+    CPUMemory.agents = new Agent[CPUMemory.agentCount];
     if (colorAgents != nullptr) {
         delete[] colorAgents;
     }
-    colorAgents = new Color[agentCount];
-    for (int i = 0; i < agentCount; i++) {
+    colorAgents = new Color[CPUMemory.agentCount];
+    for (int i = 0; i < CPUMemory.agentCount; i++) {
         int x, y;
         while (true) {
             findFree(x, y);
@@ -378,7 +388,7 @@ void Map::initAgents() {
                 break;
             }
         }
-        Agent& a = m.agents[i];
+        Agent& a = CPUMemory.agents[i];
         a.x = x;
         a.y = y;
         a.direction = AGENT_LOADER;
@@ -389,30 +399,30 @@ void Map::initAgents() {
 }
 
 void Map::initUnloader() {
-    if (m.unloaderPosition != nullptr) {
-        delete[] m.unloaderPosition;
+    if (CPUMemory.unloaderPosition != nullptr) {
+        delete[] CPUMemory.unloaderPosition;
     }
-    m.unloaderPosition = new Position[unloaderCount];
-    for (int i = 0; i < unloaderCount; i++) {
+    CPUMemory.unloaderPosition = new Position[CPUMemory.unloaderCount];
+    for (int i = 0; i < CPUMemory.unloaderCount; i++) {
         int x, y;
         findFree(x, y);
-        m.grid[getTrueIndexGrid(width, x, y)] = UNLOADER_SYMBOL;
-        m.unloaderPosition[i].x = x;
-        m.unloaderPosition[i].y = y;
+        CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] = UNLOADER_SYMBOL;
+        CPUMemory.unloaderPosition[i].x = x;
+        CPUMemory.unloaderPosition[i].y = y;
     }
 }
 
 void Map::initLoader() {
-    if (m.loaderPosition != nullptr) {
-        delete[] m.loaderPosition;
+    if (CPUMemory.loaderPosition != nullptr) {
+        delete[] CPUMemory.loaderPosition;
     }
-    m.loaderPosition = new Position[loaderCount];
-    for (int i = 0; i < loaderCount; i++) {
+    CPUMemory.loaderPosition = new Position[CPUMemory.loaderCount];
+    for (int i = 0; i < CPUMemory.loaderCount; i++) {
         int x, y;
         findFree(x, y);
-        m.grid[getTrueIndexGrid(width, x, y)] = LOADER_SYMBOL;
-        m.loaderPosition[i].x = x;
-        m.loaderPosition[i].y = y;
+        CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] = LOADER_SYMBOL;
+        CPUMemory.loaderPosition[i].x = x;
+        CPUMemory.loaderPosition[i].y = y;
     }
 }
 
@@ -420,21 +430,26 @@ void Map::initObstacle() {
     for (int i = 0; i < obstacleCount; i++) {
         int x, y;
         findFree(x, y);
-        m.grid[getTrueIndexGrid(width, x, y)] = OBSTACLE_SYMBOL;
+        CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] = OBSTACLE_SYMBOL;
     }
 }
 
 void Map::initGrid() {
-    if (m.grid != nullptr) {
+    if (CPUMemory.grid != nullptr) {
         deleteMemory();
     }
-    m.grid = new char[height*width];
-    for (int i = 0; i < height*width; i++) {
-        m.grid[i] = FREEFIELD_SYMBOL;
+    CPUMemory.grid = new char[CPUMemory.height* CPUMemory.width];
+    for (int i = 0; i < CPUMemory.height* CPUMemory.width; i++) {
+        CPUMemory.grid[i] = FREEFIELD_SYMBOL;
     }
 }
 
 void Map::init() {
+    int gridSize = CPUMemory.height * CPUMemory.height;
+    int objectNumber = CPUMemory.loaderCount + CPUMemory.unloaderCount + CPUMemory.agentCount + obstacleCount;
+    if (objectNumber >= (gridSize*3)/4) {
+        throw std::logic_error("overfilled map");
+    }
     initMem();
     initGrid();
     initObstacle();
@@ -448,68 +463,66 @@ void Map::initMem() {
         throw std::logic_error("not enough memory");
     }
 
-    size_t mapSize = width * height;
-    size_t stackSize = agentCount * mapSize;
+    size_t mapSize = CPUMemory.width * CPUMemory.height;
+    size_t stackSize = CPUMemory.agentCount * mapSize;
 
     // Najskôr uvo¾níme starú pamä
-    delete[] m.stuffWHLUA;
-    delete[] m.minSize;
-    delete[] m.gCost;
-    delete[] m.fCost;
-    delete[] m.cameFrom;
-    delete[] m.visited;
-    delete[] m.openList;
-    delete[] m.constrait;
-    delete[] m.numberConstrait;
+    delete[] CPUMemory.minSize;
+    delete[] CPUMemory.gCost;
+    delete[] CPUMemory.fCost;
+    delete[] CPUMemory.cameFrom;
+    delete[] CPUMemory.visited;
+    delete[] CPUMemory.openList;
+    delete[] CPUMemory.constrait;
+    delete[] CPUMemory.numberConstrait;
 
     try {
-        m.stuffWHLUA = new int[SIZE_INDEXES];
-        m.minSize = new int[1];
-        m.gCost = new int[stackSize];
-        m.fCost = new int[stackSize];
-        m.cameFrom = new Position[stackSize];
-        m.visited = new bool[stackSize];
-        m.openList = new Position[stackSize];
-        m.constrait = new Constrait[agentCount * (agentCount - 1)];
-        m.numberConstrait = new int[agentCount];
+        CPUMemory.minSize = new int[1];
+        CPUMemory.gCost = new int[stackSize];
+        CPUMemory.fCost = new int[stackSize];
+        CPUMemory.cameFrom = new Position[stackSize];
+        CPUMemory.visited = new bool[stackSize];
+        CPUMemory.openList = new Position[stackSize];
+        CPUMemory.constrait = new Constrait[stackSize/4];
+        CPUMemory.numberConstrait = new int[CPUMemory.agentCount];
     }
     catch (const std::bad_alloc& e) {
         // Ak nastane chyba, dealokuj už alokovanú pamä
-        delete[] m.stuffWHLUA;
-        delete[] m.minSize;
-        delete[] m.gCost;
-        delete[] m.fCost;
-        delete[] m.cameFrom;
-        delete[] m.visited;
-        delete[] m.openList;
-        delete[] m.constrait;
-        delete[] m.numberConstrait; 
+        delete[] CPUMemory.minSize;
+        delete[] CPUMemory.gCost;
+        delete[] CPUMemory.fCost;
+        delete[] CPUMemory.cameFrom;
+        delete[] CPUMemory.visited;
+        delete[] CPUMemory.openList;
+        delete[] CPUMemory.constrait;
+        delete[] CPUMemory.numberConstrait; 
 
         throw std::runtime_error("Memory allocation failed " + std::string(e.what()));
     }
 }
 
 bool Map::canInitializeMemory() {
-    size_t mapSize = width * height;
-    size_t stackSize = agentCount * mapSize;
+    size_t mapSize = CPUMemory.width * CPUMemory.height;
+    size_t stackSize = CPUMemory.agentCount * mapSize;
 
     size_t totalAlloc = 0;
-    totalAlloc += 6 * sizeof(int); // width_height_loaderCount_unloaderCount_agentCount + minSize
+    totalAlloc += sizeof(MemoryPointers);
+    totalAlloc += sizeof(int); // minSize
     totalAlloc += mapSize * sizeof(char); // grid
-    totalAlloc += agentCount * sizeof(Agent); // agents
-    totalAlloc += loaderCount * sizeof(Position); // loaderPosition
-    totalAlloc += unloaderCount * sizeof(Position); // unloaderPosition
+    totalAlloc += CPUMemory.agentCount * sizeof(Agent); // agents
+    totalAlloc += CPUMemory.loaderCount * sizeof(Position); // loaderPosition
+    totalAlloc += CPUMemory.unloaderCount * sizeof(Position); // unloaderPosition
     totalAlloc += stackSize * sizeof(Position); // paths
-    totalAlloc += agentCount * sizeof(int); // pathSizes
-    totalAlloc += agentCount * sizeof(int); // contraitsSizes
+    totalAlloc += CPUMemory.agentCount * sizeof(int); // pathSizes
+    totalAlloc += CPUMemory.agentCount * sizeof(int); // contraitsSizes
     totalAlloc += stackSize * sizeof(int); // gCost
     totalAlloc += stackSize * sizeof(int); // fCost
     totalAlloc += stackSize * sizeof(Position); // cameFrom
     totalAlloc += stackSize * sizeof(bool); // visited
     totalAlloc += stackSize * sizeof(Position); // openList
-    totalAlloc += agentCount * (agentCount - 1) * sizeof(Constrait); // constrait
-    totalAlloc += agentCount * sizeof(int); // numberConstrait
-    totalAlloc += agentCount * sizeof(Color);
+    totalAlloc += stackSize * sizeof(Constrait) / 4; // constrait
+    totalAlloc += CPUMemory.agentCount * sizeof(int); // numberConstrait
+    totalAlloc += CPUMemory.agentCount * sizeof(Color);
     size_t totalGlobalMem = getFreeRam();
     if (totalAlloc >= ((totalGlobalMem * 3) / 4)) {
         return false;
@@ -520,17 +533,17 @@ bool Map::canInitializeMemory() {
 // ===================================== draw ====================
 
 void Map::drawGrid(int cellWidth, int cellHeight) {
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
             Rectangle rect = Rectangle{ static_cast<float>(x * cellWidth), static_cast<float>(y * cellHeight), static_cast<float>(cellWidth), static_cast<float>(cellHeight) };
-            if (m.grid[getTrueIndexGrid(width, x, y)] == OBSTACLE_SYMBOL) {
+            if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] == OBSTACLE_SYMBOL) {
                 DrawRectangleRec(rect, BLACK);
             }
-            else if (m.grid[getTrueIndexGrid(width, x, y)] == LOADER_SYMBOL) {
+            else if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] == LOADER_SYMBOL) {
                 DrawRectangleRec(rect, LIGHTGRAY);
                 DrawText("I", static_cast<float>(cellWidth) / 4 + rect.x, static_cast<float>(cellHeight) / 4 + rect.y, 20, DARKGRAY);
             }
-            else if (m.grid[getTrueIndexGrid(width, x, y)] == UNLOADER_SYMBOL) {
+            else if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] == UNLOADER_SYMBOL) {
                 DrawRectangleRec(rect, LIGHTGRAY);
                 DrawText("O", rect.x + static_cast<float>(cellWidth) / 4, rect.y + static_cast<float>(cellHeight) / 4, 20, DARKGRAY);
             }
@@ -542,13 +555,14 @@ void Map::drawGrid(int cellWidth, int cellHeight) {
 }
 
 void Map::drawAgentPath(const int agentIndex, int cellWidth, int cellHeight) {
-    if (m.pathSizesAgent[agentIndex] <= 0) {
+    if (CPUMemory.agents[agentIndex].sizePath <= 0) {
         return; 
     }
     Color& c = colorAgents[agentIndex];
     Color pathColor = { c.r, c.g, c.b, 60 };
-    Position *path = &m.pathsAgent[getTrueIndexPath(agentIndex, 0)];
-    for (int i = 0; i < m.pathSizesAgent[agentIndex]; i++) {
+    int offset = CPUMemory.width * CPUMemory.height;
+    Position *path = &CPUMemory.pathsAgent[agentIndex * offset];
+    for (int i = 0; i < CPUMemory.agents[agentIndex].sizePath; i++) {
         Position& pos = path[i];
         Rectangle rect = {
             static_cast<float>(pos.x * cellWidth),
@@ -561,22 +575,22 @@ void Map::drawAgentPath(const int agentIndex, int cellWidth, int cellHeight) {
 }
 
 void Map::drawAgents(int cellWidth, int cellHeight) {
-    for (int i = 0; i < agentCount; i++) {
-        Agent& agent = m.agents[i];
+    for (int i = 0; i < CPUMemory.agentCount; i++) {
+        Agent& agent = CPUMemory.agents[i];
         Color& c = colorAgents[i];
         int agentX = agent.x * cellWidth + cellWidth / 2;
         int agentY = agent.y * cellHeight + cellHeight / 2;
         DrawCircle(agentX, agentY, static_cast<float>(cellWidth) / 4, GREEN);
         DrawCircle(agentX, agentY, static_cast<float>(cellWidth) / 8, { c.r, c.g, c.b, c.a });
     }
-    for (int i = 0; i < agentCount; i++) {
+    for (int i = 0; i < CPUMemory.agentCount; i++) {
         drawAgentPath(i, cellWidth, cellHeight);
     }
 }
 
 void Map::draw(int screenWidth, int screenHeight) {
-    int cellWidth = screenWidth / width;
-    int cellHeight = screenHeight / height;
+    int cellWidth = screenWidth / CPUMemory.width;
+    int cellHeight = screenHeight / CPUMemory.height;
     drawGrid(cellWidth, cellHeight);
     drawAgents(cellWidth, cellHeight);
     drawSelect(cellWidth, cellHeight);

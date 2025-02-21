@@ -1,15 +1,12 @@
 #pragma once
-#include "agent.h"
+#include "map.h"
 
 struct MyHeap {
     Position* heap;
     int size;
 };
 
-struct Constrait {
-    int index, x, y;
-};
-void push(MyHeap& myHeap, Position p, int* gCost, int width) {
+inline void push(MyHeap& myHeap, Position p, int* gCost, int width) {
     myHeap.heap[myHeap.size] = p;
     myHeap.size++;
     int i = myHeap.size - 1;
@@ -20,12 +17,14 @@ void push(MyHeap& myHeap, Position p, int* gCost, int width) {
             break;
         }
 
-        std::swap(myHeap.heap[parent], myHeap.heap[i]);
+        Position temp = myHeap.heap[i];
+        myHeap.heap[i] = myHeap.heap[parent];
+        myHeap.heap[parent] = temp;
         i = parent;
     }
 }
 
-Position pop(MyHeap& myHeap, int* gCost, int width) {
+inline Position pop(MyHeap& myHeap, int* gCost, int width) {
     if (myHeap.size == 0) {
         return { -1, -1 };
     }
@@ -48,15 +47,16 @@ Position pop(MyHeap& myHeap, int* gCost, int width) {
             gCost[myHeap.heap[smallest].y * width + myHeap.heap[smallest].x]) {
             break;
         }
-
-        std::swap(myHeap.heap[i], myHeap.heap[smallest]);
+        Position temp = myHeap.heap[i];
+        myHeap.heap[i] = myHeap.heap[smallest];
+        myHeap.heap[smallest] = temp;
         i = smallest;
     }
 
     return root;
 }
 
-bool empty(MyHeap& myHeap) {
+inline bool empty(MyHeap& myHeap) {
     return myHeap.size == 0;
 }
 

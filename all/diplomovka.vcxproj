@@ -89,6 +89,7 @@
     <ClCompile Include="compute_parallel_cpu_primitive.cpp" />
     <ClCompile Include="compute_sycl.cpp" />
     <ClCompile Include="diplomovka.cpp" />
+    <ClCompile Include="fill_init_convert.cpp" />
     <ClCompile Include="loadScene.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mainScene.cpp" />
@@ -106,10 +107,10 @@
     <ClCompile Include="viewScene.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="agent.h" />
     <ClInclude Include="a_star_algo.h" />
     <ClInclude Include="changeScene.h" />
     <ClInclude Include="compute.h" />
+    <ClInclude Include="fill_init_convert.h" />
     <ClInclude Include="heap_primitive.h" />
     <ClInclude Include="loadScene.h" />
     <ClInclude Include="mainScene.h" />

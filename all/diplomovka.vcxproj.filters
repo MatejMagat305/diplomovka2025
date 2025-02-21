@@ -87,11 +87,11 @@
     <ClCompile Include="primitivecpu.cpp">
       <Filter>temp</Filter>
     </ClCompile>
+    <ClCompile Include="fill_init_convert.cpp">
+      <Filter>compute souce</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="agent.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="changeScene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -132,6 +132,9 @@
       <Filter>compute headers</Filter>
     </ClInclude>
     <ClInclude Include="move_agent.h">
+      <Filter>compute headers</Filter>
+    </ClInclude>
+    <ClInclude Include="fill_init_convert.h">
       <Filter>compute headers</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,17 +1,14 @@
 #include "move_agent.h"
 #include "a_star_algo.h"
+#include "map.h" 
 
 
 namespace internal {
-    void moveAgentForIndex(int id, Agent* agents, Position* paths, Position* loaderPosition, Position* unloaderPosition,
-        int* width_height_loaderCount_unloaderCount_agentCount, int* minSize) {
-        Agent& a = agents[id];
-        const int moveSize = *minSize;
-        const int width = width_height_loaderCount_unloaderCount_agentCount[WIDTHS_INDEX];
-        const int height = width_height_loaderCount_unloaderCount_agentCount[HEIGHTS_INDEX];
-        int offset = id * width * height;
+    void moveAgentForIndex(int id, MemoryPointers localMemory) {
+        Agent& a = localMemory.agents[id];
+        const int moveSize = *localMemory.minSize;
         if (moveSize > 0) {
-            Position& p = paths[offset + moveSize - 1];
+            Position& p = localMemory.pathsAgent[moveSize - 1];
             a.x = p.x;
             a.y = p.y;
         }
@@ -20,29 +17,28 @@ namespace internal {
         }
 
         if (a.direction == AGENT_LOADER) {
-            Position& loader = loaderPosition[a.loaderCurrent];
+            Position& loader = localMemory.loaderPosition[a.loaderCurrent];
             if (a.x == loader.x && a.y == loader.y) {
                 a.direction = AGENT_UNLOADER;
-                a.loaderCurrent = (a.loaderCurrent + 1 + moveSize) % width_height_loaderCount_unloaderCount_agentCount[LOADERS_INDEX];
+                a.loaderCurrent = (a.loaderCurrent + 1 + moveSize) % localMemory.loaderCount;
                 // TODO random
-                agents[id].sizePath = 0;
+                localMemory.agents[id].sizePath = 0;
                 return;
             }
         }
         else {
-            Position& unloader = unloaderPosition[a.unloaderCurrent];
+            Position& unloader = localMemory.unloaderPosition[a.unloaderCurrent];
             if (a.x == unloader.x && a.y == unloader.y) {
                 a.direction = AGENT_LOADER;
-                a.unloaderCurrent = (a.unloaderCurrent + 1 + moveSize) % width_height_loaderCount_unloaderCount_agentCount[UNLOADERS_INDEX];
-                agents[id].sizePath = 0;
+                a.unloaderCurrent = (a.unloaderCurrent + 1 + moveSize) % localMemory.unloaderCount;
+                localMemory.agents[id].sizePath = 0;
                 return;
             }
         }
-        Position* agentPath = &paths[offset];
-        int agentSizePath = agents[id].sizePath;
+        int agentSizePath = localMemory.agents[id].sizePath;
         for (int i = moveSize; i < agentSizePath; i++) {
-            agentPath[i - moveSize] = agentPath[i];
+            localMemory.pathsAgent[i - moveSize] = localMemory.pathsAgent[i];
         }
-        agents[id].sizePath = agents[id].sizePath - moveSize;
+        localMemory.agents[id].sizePath = localMemory.agents[id].sizePath - moveSize;
     }
 }

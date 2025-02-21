@@ -8,6 +8,8 @@
 #include <condition_variable>
 #include <unordered_set>
 #include <chrono>
+#include "heap_primitive.h"
+#include "fill_init_convert.h"
 
 namespace internal {
 
@@ -24,7 +26,7 @@ namespace internal {
         int minDistance = std::numeric_limits<int>::max();
 
         for (int i = 0; i < m.loaderCount; ++i) {
-            Position loader = m.loaderPosition[i];
+            Position loader = m.CPUMemory.loaderPosition[i];
             int distance = ManhattanHeuristic(Position{agent.x, agent.y}, loader);
             if (distance < minDistance) {
                 minDistance = distance;
@@ -34,12 +36,12 @@ namespace internal {
 
         return closestLoader;
     }
-    std::vector<Position> ComputeASTAR(Map& m, int agentID, const std::vector<Constraint>& constraints) {
-        Agent& a = m.agents[agentID];
+    std::vector<Position> ComputeASTAR(Map& m, int agentID, const std::vector<std::vector<Constrait>>& constraints) {
+        Agent& a = m.CPUMemory.agents[agentID];
         Position start = Position{a.x, a.y};
         Position goal = (a.direction == AGENT_LOADER)
-            ? m.loaderPosition[a.loaderCurrent]
-            : m.unloaderPosition[a.unloaderCurrent];
+            ? m.CPUMemory.loaderPosition[a.loaderCurrent]
+            : m.CPUMemory.unloaderPosition[a.unloaderCurrent];
 
         std::priority_queue<Node, std::vector<Node>, std::greater<Node>> openSet;
         std::map<Position, int> costSoFar;
@@ -71,12 +73,16 @@ namespace internal {
 
             for (const auto& next : neighbors) {
                 if (next.x < 0 || next.y < 0 || next.x >= m.width || next.y >= m.height) continue;
-                if (m.grid[next.y][next.x] == OBSTACLE_SYMBOL) continue;
+                if (m.CPUMemory.grid[getTrueIndexGrid(m.width, next.x, next.y)] == OBSTACLE_SYMBOL) continue;
 
                 // Kontrola konfliktov v Constraint Tree
                 bool conflict = false;
-                for (const auto& constraint : constraints) {
-                    if (constraint.agentID == agentID && isSamePosition(constraint.pos, next)) {
+                auto constraintsAgent = constraints[agentID];
+                for (const auto& constraint : constraintsAgent) {
+                    Position actual{};
+                    actual.x = constraint.x;
+                    actual.y = constraint.y;
+                    if (isSamePosition(actual, next)) {
                         conflict = true;
                         break;
                     }
@@ -96,7 +102,7 @@ namespace internal {
         return {}; // Ak nie je moûnÈ n·jsù cestu
     }
 
-    std::vector<Position> ComputeshortestPathALGO(AlgorithmType which, Map& m, int agentID, const std::vector<Constraint>& constraints) {
+    std::vector<Position> ComputeshortestPathALGO(AlgorithmType which, Map& m, int agentID, const std::vector<std::vector<Constrait>>& constraints) {
         switch (which) {
         case AlgorithmType::ASTAR:
             return ComputeASTAR(m, agentID, constraints);
@@ -169,7 +175,7 @@ namespace internal {
                         processedAgents[agentId] = true;
                     }
 
-                    std::vector<Position> path = ComputeshortestPathALGO(which, std::ref(m), agentId, std::vector<Constraint>{});
+                    std::vector<Position> path = ComputeshortestPathALGO(which, std::ref(m), agentId, const std::vector<std::vector<Constrait>>{});
                     root.paths[agentId] = path;
                 }
                 }));
@@ -217,12 +223,17 @@ namespace internal {
                         int owner1 = conflictOwner.agentID1, owner2 = conflictOwner.agentID2;
                         CTNode newNode1 = current;
                         CTNode newNode2 = current;
-                        newNode1.constraints[owner1].push_back({ conflictPos1 });
-                        newNode2.constraints[owner2].push_back({ conflictPos2 });
+                        Constrait c1, c2;
+                        c1.x = conflictPos1.x;
+                        c1.y = conflictPos1.y;
+                        c2.x = conflictPos2.x;
+                        c2.y = conflictPos2.y;
+                        newNode1.constraints[owner1].push_back(c1);
+                        newNode2.constraints[owner2].push_back(c2);
                         newNode1.conflicts.erase(conflictOwner);
                         newNode2.conflicts.erase(conflictOwner);
-                        newNode1.paths[owner1] = ComputeshortestPathALGO(which, m, owner1, newNode1.constraints[owner1]);
-                        newNode2.paths[owner2] = ComputeshortestPathALGO(which, m, owner2, newNode2.constraints[owner2]);
+                        newNode1.paths[owner1] = ComputeshortestPathALGO(which, m, owner1, newNode1.constraints);
+                        newNode2.paths[owner2] = ComputeshortestPathALGO(which, m, owner2, newNode2.constraints);
                         reDetectConflicts(newNode1, { owner1 });
                         reDetectConflicts(newNode2, { owner2 });
                         {
@@ -256,11 +267,9 @@ namespace internal {
         resolveConflictsCBS(which, m, root, numThreads, solution);
 
         // Spracovanie v˝slednej cesty (rovnakÈ ako predt˝m)
-        Position** Paths = m.agentPaths;
+        Position* Paths = m.CPUMemory.pathsAgent;
+        int offset = m.agentCount*m.height*
         for (int i = 0; i < m.agentCount; i++) {
-            if (Paths[i] != nullptr) {
-                delete[] Paths[i];
-            }
             Position* Path = Paths[i];
             std::vector<Position>& solutionPath = solution[i];
             int sizePath = solutionPath.size();

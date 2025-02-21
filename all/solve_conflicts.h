@@ -8,7 +8,7 @@
 #include <condition_variable>
 #include <vector>
 #include <sycl/sycl.hpp>
-
+#include "map.h"
 namespace internal {
     class MyBarrier {
         std::mutex mutex;
@@ -32,10 +32,6 @@ namespace internal {
         }
     };
 
-    void processAgentCollisionsGPU(sycl::nd_item<1> item, Position* paths, int* pathSizes,
-        int* width_height_loaderCount_unloaderCount_agentCount, int* minSize, char* grid,
-        Constrait* constrait, int* numberConstrait, Agent* agents);
-    void processAgentCollisionsCPU(MyBarrier& b, int agentId, Position* paths, int* pathSizes,
-        int* width_height_loaderCount_unloaderCount_agentCount, int* minSize, char* grid,
-        Constrait* constrait, int* numberConstrait, Agent* agents);
+    inline void processAgentCollisionsGPU(sycl::nd_item<1> item, MemoryPointers& localMamory);
+    inline void processAgentCollisionsCPU(MyBarrier& b, MemoryPointers& localMamory);
 }

@@ -1,10 +1,15 @@
 #pragma once
 #include <map>
 #include <string>
-#include "agent.h"
 #include "raylib.h"
-#include "heap_primitive.h"
 #include <unordered_set>
+#include <utility>
+#include <vector>
+#include <iostream>
+
+#define AGENT_UNLOADER 1
+#define AGENT_LOADER 2
+
 #define LOADER_SYMBOL 'I'
 #define UNLOADER_SYMBOL 'O'
 #define OBSTACLE_SYMBOL '#'
@@ -12,7 +17,21 @@
 
 // nno map symbol
 #define AGENT_SYMBOL 'A'
-Position selected = Position{ -1,-1 };
+
+
+struct Position {
+    int x, y;
+};
+
+struct Agent {
+    int x = 0, y = 0, sizePath = 0;
+    int unloaderCurrent;
+    int loaderCurrent;
+    unsigned char direction;
+};
+struct Constrait {
+    int index, x, y;
+};
 
 struct PositionOwner {
     Position pos1, pos2;
@@ -66,16 +85,14 @@ struct Node {
 };
 
 struct MemoryPointers{
+    int width, height, loaderCount, unloaderCount, agentCount;
     char* grid = nullptr;
     Position* loaderPosition = nullptr;
     Position* unloaderPosition = nullptr;
     Agent* agents = nullptr;
 
-    int* stuffWHLUA = nullptr;
     int* minSize = nullptr;
-    Agent* agents = nullptr;
     Position* pathsAgent = nullptr;
-    int* pathSizesAgent = nullptr;
 
     int* gCost = nullptr;
     int* fCost = nullptr;
@@ -87,10 +104,9 @@ struct MemoryPointers{
     int* numberConstrait = nullptr;
 };
 
-
 struct Map {
-    int width, height, loaderCount, unloaderCount, obstacleCount, agentCount;
-    MemoryPointers m;
+    MemoryPointers CPUMemory;
+    int obstacleCount;
     Color* colorAgents = nullptr;
 
     bool is_need_init();
@@ -110,7 +126,6 @@ struct Map {
 
     void saveGrid(std::stringstream* outputString);
     void saveAgents(std::stringstream* outputString);
-    int getTrueIndexPath(int agentIndex, int PositionIndex);
     void saveDocks(std::stringstream* outputString);
     void save(const std::string& baseFilename);
     bool canInitializeMemory();
