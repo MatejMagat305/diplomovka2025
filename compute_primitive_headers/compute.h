@@ -7,11 +7,16 @@ enum class AlgorithmType {
 };
 namespace internal {
     static bool wasGPUSynch = false;
-    bool wasSynchronize() { return wasGPUSynch; }
-    void setGPUSynch(bool b) { wasGPUSynch = b; }
 }
 
-double computeCPU(AlgorithmType which, Map& m, int numThreads);
+double compute_cpu_primitive(AlgorithmType which, Map& m);
 double computeSYCL(AlgorithmType which, Map& m);
+double computeHybrid(AlgorithmType which, Map& m);
+
 std::string initializeSYCL(Map& m);
 void destroySYCL();
+void synchronizeGPUFromCPU(Map& m);
+void synchronizeCPUFromGPU(Map& m);
+
+bool wasSynchronize() { return internal::wasGPUSynch; }
+void setGPUSynch(bool b) { internal::wasGPUSynch = b; }
