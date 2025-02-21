@@ -1,28 +1,62 @@
 #include "a_star_algo.h"
 #include "map.h"
 
+int getTrueIndexGrid(int width, int x, int y) {
+    return y * width + x;
+}
+
 namespace internal {
-    void initializeCostsAndHeap(int* gCost, int* fCost, bool* visited,
-        MyHeap& myHeap, Position start, int mapSize, int width) {
-        const int INF = 1e9;
-        for (int i = 0; i < mapSize; i++) {
-            gCost[i] = INF;
-            fCost[i] = INF;
-            visited[i] = false;
-        }
-        gCost[start.y * width + start.x] = 0;
-        fCost[start.y * width + start.x] = 0;
-        push(myHeap, start, fCost, width);
+
+    inline void createLocalMemory(MemoryPointers& memory, int agentId, MemoryPointers& local) {
+        const int width = memory.stuffWHLUA[WIDTHS_INDEX];
+        const int height = memory.stuffWHLUA[HEIGHTS_INDEX];
+        const int agentCount = memory.stuffWHLUA[AGENTS_INDEX];
+        const int mapSize = width * height;
+        int offset = mapSize * agentId;
+         local = {
+            memory.grid,
+            memory.loaderPosition,
+            memory.unloaderPosition,
+            memory.agents,
+            memory.stuffWHLUA,
+            memory.minSize,
+            memory.agents,
+            &(memory.pathsAgent[offset]),
+            memory.pathSizesAgent,
+            &(memory.gCost[offset]),
+            &(memory.fCost[offset]),
+            &(memory.cameFrom[offset]),
+            &(memory.visited[offset]),
+            &(memory.openList[offset]),
+            & (memory.constrait[agentId*(agentCount-1)]),
+            memory.numberConstrait
+        };
     }
 
-    void runAStar(int* gCost, int* fCost, bool* visited, Position* cameFrom,
-        char* grid, MyHeap& myHeap, Position start, Position goal, int width, int height) {
+    inline void initializeCostsAndHeap(MemoryPointers& localMemory, MyHeap& myHeap, Position start) {
+        const int width = localMemory.stuffWHLUA[WIDTHS_INDEX];
+        const int height = localMemory.stuffWHLUA[HEIGHTS_INDEX];
+        const int mapSize = width * height;
+        const int INF = 1e9;
+        for (int i = 0; i < mapSize; i++) {
+            localMemory.gCost[i] = INF;
+            localMemory.fCost[i] = INF;
+            localMemory.visited[i] = false;
+        }
+        localMemory.gCost[getTrueIndexGrid(width, start.x, start.y)] = 0;
+        localMemory.fCost[getTrueIndexGrid(width, start.x, start.y)] = 0;
+        push(myHeap, start, localMemory.fCost, width);
+    }
+
+    void runAStar(MemoryPointers& localMemory, MyHeap& myHeap, Position start, Position goal) {
+        const int width = localMemory.stuffWHLUA[WIDTHS_INDEX];
+        const int height = localMemory.stuffWHLUA[HEIGHTS_INDEX];
         while (!empty(myHeap)) {
-            Position current = pop(myHeap, fCost, width);
+            Position current = pop(myHeap, localMemory.fCost, width);
             if (current.x == goal.x && current.y == goal.y) break;
 
-            if (visited[current.y * width + current.x]) continue;
-            visited[current.y * width + current.x] = true;
+            if (localMemory.visited[getTrueIndexGrid(width, current.x, current.y)]) continue;
+            localMemory.visited[getTrueIndexGrid(width, current.x, current.y)] = true;
 
             Position neighbors[4] = {
                 {current.x + 1, current.y}, {current.x - 1, current.y},
@@ -31,63 +65,57 @@ namespace internal {
             for (int j = 0; j < 4; j++) {
                 Position next = neighbors[j];
                 if (next.x >= 0 && next.x < width && next.y >= 0 && next.y < height &&
-                    grid[next.y * width + next.x] != OBSTACLE_SYMBOL && !visited[next.y * width + next.x]) {
+                    localMemory.grid[getTrueIndexGrid(width, current.x, current.y)] != OBSTACLE_SYMBOL && !localMemory.visited[getTrueIndexGrid(width, current.x, current.y)]) {
 
-                    int newG = gCost[current.y * width + current.x] + 1;
-                    if (newG < gCost[next.y * width + next.x]) {
-                        gCost[next.y * width + next.x] = newG;
-                        fCost[next.y * width + next.x] = newG + abs(goal.x - next.x) + abs(goal.y - next.y);
-                        cameFrom[next.y * width + next.x] = current;
-                        push(myHeap, next, fCost, width);
+                    int newG = localMemory.gCost[getTrueIndexGrid(width, current.x, current.y)] + 1;
+                    if (newG < localMemory.gCost[getTrueIndexGrid(width, current.x, current.y)]) {
+                        localMemory.gCost[getTrueIndexGrid(width, current.x, current.y)] = newG;
+                        localMemory.fCost[getTrueIndexGrid(width, current.x, current.y)] = newG + abs(goal.x - next.x) + abs(goal.y - next.y);
+                        localMemory.cameFrom[getTrueIndexGrid(width, current.x, current.y)] = current;
+                        push(myHeap, next, localMemory.fCost, width);
                     }
                 }
             }
         }
     }
 
-    int reconstructPath(Position* paths, Position* cameFrom, Position start, Position goal, int width) {
+    int reconstructPath(MemoryPointers& localMemory, Position start, Position goal) {
+        const int width = localMemory.stuffWHLUA[WIDTHS_INDEX];
         Position current = goal;
         int pathLength = 0;
 
         while (current.x != start.x || current.y != start.y) {
-            paths[pathLength++] = current;
-            current = cameFrom[current.y * width + current.x]; 
+            localMemory.pathsAgent[pathLength++] = current;
+            current = localMemory.cameFrom[getTrueIndexGrid(width, current.x, current.y)];
         }
-        paths[pathLength++] = start;
+        localMemory.pathsAgent[pathLength++] = start;
 
         // Reverse path
         for (int i = 0; i < pathLength / 2; i++) {
-            std::swap(paths[i], paths[pathLength - i - 1]);
+            Position temp = localMemory.pathsAgent[i];
+            localMemory.pathsAgent[i] = localMemory.pathsAgent[pathLength - i - 1];
+            localMemory.pathsAgent[pathLength - i - 1] = temp;
         }
 
         return pathLength;
     }
 
-    void computePathForAgent(int agentId, int* width_height_loaderCount_unloaderCount_agentCount_minSize,
-        char* grid, Agent* agents, Position* loaderPosition, Position* unloaderPosition,
-        Position* paths, int* pathSizes, int* fCost, int* gCost, bool* visited, Position* cameFrom, Position* openList) {
-        int sizePath = pathSizes[agentId];
+    void computePathForAgent(int agentId, MemoryPointers& localMemory) {
+        int sizePath = localMemory.agents[agentId].sizePath;
         if (sizePath != 0) {
             return;
         }
-        const int width = width_height_loaderCount_unloaderCount_agentCount_minSize[WIDTHS_INDEX];
-        const int height = width_height_loaderCount_unloaderCount_agentCount_minSize[HEIGHTS_INDEX];
-        const int mapSize = width * height;
-
-        int offset = agentId * mapSize;
-        int* fCostLocal = &fCost[offset];
-        int* gCostLocal = &gCost[offset];
-        bool* visitedLocal = &visited[offset];
-        Position* cameFromLocal = &cameFrom[offset];
-        Position* pathsLocal = &paths[offset];
-
-        Agent a = agents[agentId];
+        Agent a = localMemory.agents[agentId];
         Position start = Position{a.x, a.y};
-        Position goal = (a.direction == AGENT_LOADER) ? loaderPosition[a.loaderCurrent] : unloaderPosition[a.unloaderCurrent];
-
-        MyHeap myHeap{ &openList[offset], 0 };
-        initializeCostsAndHeap(gCostLocal, fCostLocal, visitedLocal, myHeap, start, mapSize, width);
-        runAStar(gCostLocal, fCostLocal, visitedLocal, cameFromLocal, grid, myHeap, start, goal, width, height);
-        pathSizes[agentId] = reconstructPath(pathsLocal, cameFromLocal, start, goal, width);
+        Position goal;
+        if (a.direction == AGENT_LOADER)   {
+            goal = localMemory.loaderPosition[a.loaderCurrent];
+        }else {
+            goal = localMemory.unloaderPosition[a.unloaderCurrent];
+        }
+        MyHeap myHeap{ localMemory.openList, 0 };
+        initializeCostsAndHeap(localMemory, myHeap, start);
+        runAStar(localMemory, myHeap, start, goal);
+        localMemory.agents[agentId].sizePath = reconstructPath(localMemory, start, goal);
     }
 }

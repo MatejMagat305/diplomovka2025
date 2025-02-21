@@ -5,38 +5,27 @@
 #include "heap_primitive.h"
 #include "solve_conflicts.h"
 #include "a_star_algo.h"
+#include "move_agent.h"
+#include <chrono>
 
-namespace internal {
-int* width_height_loaderCount_unloaderCount_agentCount_minSize;
-char* grid = nullptr;
-Position* loaderPosition = nullptr;
-Position* unloaderPosition = nullptr;
-Agent* agents = nullptr;
-Position* paths = nullptr;
-int* pathSizes = nullptr;
-
-int* gCost = nullptr;
-int* fCost = nullptr;
-Position* cameFrom = nullptr;
-bool* visited = nullptr;
-Position* openList = nullptr;
-Constrait* constrait = nullptr;
-int* numberConstrait = nullptr;
-sycl::queue* q = nullptr;
-
+namespace internal_gpu {
+    MemoryPointers GPUMemory;
+    sycl::queue& getQueue() {
+        static sycl::queue q{ sycl::default_selector_v };
+        return q;
+    }
 
     std::string initializeSYCLMemory(Map& m) {
         size_t mapSize = m.width * m.height;
         size_t stackSize = m.agentCount * mapSize;
 
-        size_t totalAlloc = 0;
-        totalAlloc += 6 * sizeof(int); // width_height_loaderCount_unloaderCount_agentCount
+        long long totalAlloc = 0;
+        totalAlloc += 6 * sizeof(int); // width_height_loaderCount_unloaderCount_agentCount + minSize
         totalAlloc += mapSize * sizeof(char); // grid
         totalAlloc += m.agentCount * sizeof(Agent); // agents
         totalAlloc += m.loaderCount * sizeof(Position); // loaderPosition
         totalAlloc += m.unloaderCount * sizeof(Position); // unloaderPosition
         totalAlloc += stackSize * sizeof(Position); // paths
-        totalAlloc += m.agentCount * sizeof(int); // pathSizes
         totalAlloc += m.agentCount * sizeof(int); // contraitsSizes
         totalAlloc += stackSize * sizeof(int); // gCost
         totalAlloc += stackSize * sizeof(int); // fCost
@@ -45,27 +34,34 @@ sycl::queue* q = nullptr;
         totalAlloc += stackSize * sizeof(Position); // openList
         totalAlloc += m.agentCount * (m.agentCount - 1) * sizeof(Constrait); // constrait
         totalAlloc += m.agentCount * sizeof(int); // numberConstrait
-        size_t totalGlobalMem = q->get_device().get_info<sycl::info::device::global_mem_size>();
+        long long totalGlobalMem = 4*1024*1024*1024; //q->get_device().get_info<sycl::info::device::global_mem_size>(); // 4 GB on cpu too
         if (totalAlloc >= ((totalGlobalMem * 3) / 4)) {
             std::stringstream ss;
             ss << "you have not enough device memory" << totalAlloc << "/" << ((totalGlobalMem * 3) / 4);
             return ss.str();
         }
         try {
-            width_height_loaderCount_unloaderCount_agentCount_minSize = sycl::malloc_device<int>(SIZE_INDEXES, (*q));
-            grid = sycl::malloc_device<char>(mapSize, (*q));
-            agents = sycl::malloc_device<Agent>(m.agentCount, (*q));
-            loaderPosition = sycl::malloc_device<Position>(m.loaderCount, (*q));
-            unloaderPosition = sycl::malloc_device<Position>(m.unloaderCount, (*q));
-            paths = sycl::malloc_device<Position>(stackSize, (*q));
-            pathSizes = sycl::malloc_device<int>(m.agentCount, (*q));
-            gCost = sycl::malloc_device<int>(stackSize, (*q));
-            fCost = sycl::malloc_device<int>(stackSize, (*q));
-            cameFrom = sycl::malloc_device<Position>(stackSize, (*q));
-            visited = sycl::malloc_device<bool>(stackSize, (*q));
-            openList = sycl::malloc_device<Position>(stackSize, (*q));
-            constrait = sycl::malloc_device<Constrait>(m.agentCount * (m.agentCount - 1), (*q));
-            numberConstrait = sycl::malloc_device<int>(m.agentCount, (*q));
+            sycl::queue& q = getQueue();
+            GPUMemory.stuffWHLUA = sycl::malloc_device<int>(SIZE_INDEXES, q);
+            GPUMemory.minSize = sycl::malloc_device<int>(1, q);
+            GPUMemory.grid = sycl::malloc_device<char>(mapSize, q);
+            GPUMemory.agents = sycl::malloc_device<Agent>(m.agentCount, q);
+            GPUMemory.loaderPosition = sycl::malloc_device<Position>(m.loaderCount, q);
+            GPUMemory.unloaderPosition = sycl::malloc_device<Position>(m.unloaderCount, q);
+            GPUMemory.pathsAgent = sycl::malloc_device<Position>(stackSize, q);
+            GPUMemory.gCost = sycl::malloc_device<int>(stackSize, q);
+            GPUMemory.fCost = sycl::malloc_device<int>(stackSize, q);
+            GPUMemory.cameFrom = sycl::malloc_device<Position>(stackSize, q);
+            GPUMemory.visited = sycl::malloc_device<bool>(stackSize, q);
+            GPUMemory.openList = sycl::malloc_device<Position>(stackSize, q);
+            GPUMemory.constrait = sycl::malloc_device<Constrait>(m.agentCount * (m.agentCount - 1), q);
+            GPUMemory.numberConstrait = sycl::malloc_device<int>(m.agentCount, q);
+            int temp[SIZE_INDEXES] = { m.width, m.height, m.loaderCount, m.unloaderCount, m.agentCount};
+            sycl::event e1 = q.memcpy(GPUMemory.grid, m.m.grid, mapSize * sizeof(char));
+            sycl::event e2 = q.memcpy(GPUMemory.loaderPosition, m.m.loaderPosition, m.loaderCount * sizeof(Position));
+            sycl::event e3 = q.memcpy(GPUMemory.unloaderPosition, m.m.unloaderPosition, m.unloaderCount * sizeof(Position));
+            sycl::event e4 = q.memcpy(GPUMemory.stuffWHLUA, temp, SIZE_INDEXES * sizeof(int));
+            sycl::event::wait({ e1, e2, e3, e4 });
         }
         catch (sycl::exception& e) {
             std::stringstream ss;
@@ -76,155 +72,111 @@ sycl::queue* q = nullptr;
         return "";
     }
 
-    void synchGPU(Map& m)    {
-        if (wasSynchronize())        {
-            return;
-        }
-        setGPUSynch(true);
-        int mapSize = m.width * m.height;
-        int temp[SIZE_INDEXES] = { m.width, m.height, m.loaderCount, m.unloaderCount, m.agentCount, std::numeric_limits<int>::max() };
-        sycl::event e1 = q->memcpy(grid, m.grid, mapSize * sizeof(char));
-        sycl::event e2 = q->memcpy(loaderPosition, m.loaderPosition, m.loaderCount * sizeof(Position));
-        sycl::event e3 = q->memcpy(unloaderPosition, m.unloaderPosition, m.unloaderCount * sizeof(Position));
-        sycl::event e4 = q->memcpy(agents, m.agents, m.agentCount * sizeof(Agent));
-        sycl::event e5 = q->memcpy(width_height_loaderCount_unloaderCount_agentCount_minSize, temp, SIZE_INDEXES * sizeof(int));
-        sycl::event e6 = (*q).memset(pathSizes, 0, m.agentCount * sizeof(int));
-        sycl::event::wait_and_throw({ e1, e2, e3, e4, e5, e6 });
+    // Skopírovanie výsledkov do CPU
+    void synchronizeCPUFromGPU(Map& m) {
+        sycl::queue& q = getQueue();
+        sycl::event e1 = q.memcpy(m.m.agents, GPUMemory.agents, m.agentCount * sizeof(Agent));
+        sycl::event e3 = q.memcpy(m.m.pathsAgent, GPUMemory.pathsAgent, m.agentCount * m.width * m.height * sizeof(Position));
+        sycl::event e4 = q.memcpy(m.m.minSize, GPUMemory.minSize, sizeof(int));
+        sycl::event::wait_and_throw({ e1, e3, e4 });
+    }
 
+    // Skopírovanie výsledkov do GPU
+    void synchronizeGPUFromCPU(Map& m){
+        sycl::queue& q = getQueue();
+        sycl::event e1 = q.memcpy(GPUMemory.agents, m.m.agents, m.agentCount * sizeof(Agent));
+        sycl::event e3 = q.memcpy(GPUMemory.pathsAgent, m.m.pathsAgent, m.agentCount * m.width * m.height * sizeof(Position));
+        sycl::event e4 = q.memcpy(GPUMemory.minSize, m.m.minSize, sizeof(int));
+        sycl::event::wait_and_throw({e1, e3, e4});
     }
 
     inline void freePtr(void** ptr) {
         if (ptr != nullptr && *ptr != nullptr) {
-            sycl::free(*ptr, *q);
+            sycl::free(*ptr, getQueue());
             *ptr = nullptr;
         }
     }
 
     void deleteGPUMem() {
-        if (q) {
-            q->wait();
-            freePtr((void**)(& width_height_loaderCount_unloaderCount_agentCount_minSize));
-            freePtr((void**)(&unloaderPosition));
-            freePtr((void**)(&loaderPosition));
-            freePtr((void**)(&grid));
-            freePtr((void**)(&agents));
+        sycl::queue& q = getQueue();
+        q.wait();
+        freePtr((void**)(&(GPUMemory.stuffWHLUA)));
+        freePtr((void**)(&(GPUMemory.minSize)));
+        freePtr((void**)(&(GPUMemory.unloaderPosition)));
+        freePtr((void**)(&(GPUMemory.loaderPosition)));
+        freePtr((void**)(&(GPUMemory.grid)));
+        freePtr((void**)(&(GPUMemory.agents)));
 
-            freePtr((void**)(&visited));
-            freePtr((void**)(&cameFrom));
-            freePtr((void**)(&fCost));
-            freePtr((void**)(&gCost));
-            freePtr((void**)(&openList));
-            freePtr((void**)(&paths));
-            freePtr((void**)(&pathSizes));
-            freePtr((void**)(&constrait));
-            freePtr((void**)(&numberConstrait));
-            q->wait();
-            delete q;
-            q = nullptr;
-        }
-    }
-
-    void moveAgentForIndex(int id, Agent* agents, Position* paths, int* pathSizes, Position* loaderPosition, Position* unloaderPosition,
-        int* width_height_loaderCount_unloaderCount_agentCount_minSize) {
-        Agent& a = agents[id];
-        const int moveSize = width_height_loaderCount_unloaderCount_agentCount_minSize[MIN_INDEX];
-        const int width = width_height_loaderCount_unloaderCount_agentCount_minSize[WIDTHS_INDEX];
-        const int height = width_height_loaderCount_unloaderCount_agentCount_minSize[HEIGHTS_INDEX];
-        int offset = id * width * height;
-        if (moveSize > 0) {
-            Position& p = paths[offset + moveSize - 1];
-            a.x = p.x;
-            a.y = p.y;
-        }
-        else {
-            return;
-        }
-
-        if (a.direction == AGENT_LOADER) {
-            Position& loader = loaderPosition[a.loaderCurrent];
-            if (a.x == loader.x && a.y == loader.y) {
-                a.direction = AGENT_UNLOADER;
-                a.loaderCurrent = (a.loaderCurrent + 1 + moveSize) % width_height_loaderCount_unloaderCount_agentCount_minSize[LOADERS_INDEX];
-                // TODO random
-                pathSizes[id] = 0;
-                return;
-            }
-        }
-        else {
-            Position& unloader = unloaderPosition[a.unloaderCurrent];
-            if (a.x == unloader.x && a.y == unloader.y) {
-                a.direction = AGENT_LOADER;
-                a.unloaderCurrent = (a.unloaderCurrent + 1 + moveSize) % width_height_loaderCount_unloaderCount_agentCount_minSize[UNLOADERS_INDEX];
-                pathSizes[id] = 0;
-                return;
-            }
-        }
-        Position* agentPath = &paths[offset];
-        int agentSizePath = pathSizes[id];
-        for (int i = moveSize; i < agentSizePath; i++){
-            agentPath[i - moveSize] = agentPath[i];
-        }
-        pathSizes[id] = pathSizes[id] - moveSize;
+        freePtr((void**)(&(GPUMemory.visited)));
+        freePtr((void**)(&(GPUMemory.cameFrom)));
+        freePtr((void**)(&(GPUMemory.fCost)));
+        freePtr((void**)(&(GPUMemory.gCost)));
+        freePtr((void**)(&(GPUMemory.openList)));
+        freePtr((void**)(&(GPUMemory.pathsAgent)));
+        freePtr((void**)(&(GPUMemory.constrait)));
+        freePtr((void**)(&(GPUMemory.numberConstrait)));
+        q.wait();
     }
 
     void parallelAStar(Map& m) {
-        int workSize = q->get_device().get_info<sycl::info::device::max_work_group_size>();
-        // cesty
-        auto e = (*q).submit([&](sycl::handler& h) {
+        sycl::queue& q = getQueue();
+        int workSize = q.get_device().get_info<sycl::info::device::max_work_group_size>();
+        // pohyb o minimálnu cestu 
+        auto moveTO = q.submit([&](sycl::handler& h) {
+
             h.parallel_for(sycl::range<1>(std::min(workSize, m.agentCount)), [=](sycl::id<1> idx) {
-                const int agentsize = width_height_loaderCount_unloaderCount_agentCount_minSize[AGENTS_INDEX];
-                if (idx[0]>agentsize-1)      {
+                const int agentsize = width_height_loaderCount_unloaderCount_agentCount[AGENTS_INDEX];
+                const int id = idx[0];
+                if (id > agentsize - 1 || *minSize < 1) {
                     return;
                 }
-                computePathForAgent(idx[0], width_height_loaderCount_unloaderCount_agentCount_minSize, grid, agents,
-                    loaderPosition, unloaderPosition, paths, pathSizes, fCost, gCost, visited, cameFrom, openList);
+                MemoryPointers global = {}
+                internal::moveAgentForIndex(id, agents, pathsAgent,
+                    loaderPosition, unloaderPosition,
+                    width_height_loaderCount_unloaderCount_agentCount, minSize);
+                });
+            });
+        // cesty
+        auto foundPathsAgent = q.submit([&](sycl::handler& h) {
+            h.depends_on(moveTO);
+            h.parallel_for(sycl::range<1>(std::min(workSize, m.agentCount)), [=](sycl::id<1> idx) {
+                const int agentsize = width_height_loaderCount_unloaderCount_agentCount[AGENTS_INDEX];
+                const int id = idx[0];
+                if (id == 0)   {
+                    *minSize = 2147483647; // nastav minSize pre daľší kernel
+                }
+                if (id>agentsize-1)      {
+                    return;
+                }
+                internal::computePathForAgent(id, width_height_loaderCount_unloaderCount_agentCount, grid, agents,
+                    loaderPosition, unloaderPosition, pathsAgent, fCost, gCost, visited, cameFrom, openList);
                 });
             });
         // kolízie
-        auto collisionEvent = (*q).submit([&](sycl::handler& h) {
-            h.depends_on(e);
+        auto collisionEvent = q.submit([&](sycl::handler& h) {
+            h.depends_on(foundPathsAgent);
             sycl::nd_range<1> ndRange(sycl::range<1>(std::min(workSize, m.agentCount)), sycl::range<1>(std::min(workSize, m.agentCount)));
             h.parallel_for(ndRange, [=](sycl::nd_item<1> item) {
-                const int agentsize = width_height_loaderCount_unloaderCount_agentCount_minSize[AGENTS_INDEX];
+                const int agentsize = width_height_loaderCount_unloaderCount_agentCount[AGENTS_INDEX];
                 if (item.get_global_id(0) > agentsize - 1) {
                     return;
                 }
-                processAgentCollisions(item, paths, 
-                    pathSizes, width_height_loaderCount_unloaderCount_agentCount_minSize,
+                internal::processAgentCollisionsGPU(item, pathsAgent, 
+                    width_height_loaderCount_unloaderCount_agentCount, minSize,
                     grid, constrait, numberConstrait, agents);
                 });
             });
 
-        collisionEvent.wait();
-        // Skopírovanie výsledkov do CPU
-        q->memcpy(m.agentPaths, paths, m.agentCount * m.width * m.height * sizeof(Position)).wait();
-        q->memcpy(m.agentPathSizes, pathSizes, m.agentCount * sizeof(int)).wait();
-        // pohyb o minimálnu cestu 
-        auto moveTO = (*q).submit([&](sycl::handler& h) {
-            h.parallel_for(sycl::range<1>(std::min(workSize, m.agentCount)), [=](sycl::id<1> idx) {
-                const int agentsize = width_height_loaderCount_unloaderCount_agentCount_minSize[AGENTS_INDEX];
-                if (idx[0] > agentsize - 1) {
-                    return;
-                }
-                moveAgentForIndex(idx[0], agents, paths, pathSizes,
-                    loaderPosition, unloaderPosition, 
-                    width_height_loaderCount_unloaderCount_agentCount_minSize);
-                });
-            });
-        moveTO.wait();
+        collisionEvent.wait_and_throw();
     }
-
-
 }
 
 
 double computeSYCL(AlgorithmType which, Map& m) {
-    internal::synchGPU(m);
-
     auto start_time = std::chrono::high_resolution_clock::now();
     switch (which)    {
     case AlgorithmType::ASTAR:
-        internal::parallelAStar(m);
+        internal_gpu::parallelAStar(m);
         break;
     default:
         break;
@@ -235,8 +187,7 @@ double computeSYCL(AlgorithmType which, Map& m) {
 
 
 std::string initializeSYCL(Map& m) {
-    internal::q = new sycl::queue(sycl::default_selector_v);
-    std::string res = internal::initializeSYCLMemory(m);
+    std::string res = internal_gpu::initializeSYCLMemory(m);
     if (res != "") {
         destroySYCL();
     }
@@ -244,6 +195,14 @@ std::string initializeSYCL(Map& m) {
 }
 
 void destroySYCL() {
-    internal::deleteGPUMem();
-    internal::q = nullptr;
+    internal_gpu::deleteGPUMem();
+}
+
+void synchronizeGPUFromCPU(Map& m) {
+    internal_gpu::synchronizeGPUFromCPU(m);
+}
+
+
+void synchronizeCPUFromGPU(Map& m) {
+    internal_gpu::synchronizeCPUFromGPU(m);
 }

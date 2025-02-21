@@ -3,6 +3,7 @@
 #include "heap_primitive.h"
 #include <limits>
 #include <algorithm> // Potrebné pre std::min_element
+#include <thread> 
 
 namespace internal {
 
@@ -29,19 +30,68 @@ namespace internal {
         return false;
     }
 
-    inline bool shouldYield(int agentId, int conflictAgentId, int agentDirection, int otherDirection,
-        int agentPathSize, int otherPathSize) {
-        if (agentDirection != otherDirection) {
-            return (agentDirection == AGENT_LOADER);
+    inline bool shouldYield(int agentId, int conflictAgentId, Agent* agents) {
+        Agent& a = agents[agentId], & b = agents[conflictAgentId];
+        if (a.direction != b.direction) {
+            return (a.direction == AGENT_LOADER);
         }
-        if (agentPathSize != otherPathSize) {
-            return (agentPathSize > otherPathSize);
+        if (a.sizePath != b.sizePath) {
+            return (a.sizePath > b.sizePath);
         }
         return (agentId > conflictAgentId);
     }
 
+    int runAStarContrait(Position start, Position goal, int width, int height, char* grid, Position* path,
+        int* fCost, int* gCost, bool* visited, Position* cameFrom, MyHeap& myHeap) {
+
+        std::fill(gCost, gCost + width * height, std::numeric_limits<int>::max());
+        std::fill(fCost, fCost + width * height, std::numeric_limits<int>::max());
+        std::fill(visited, visited + width * height, false);
+
+        gCost[start.y * width + start.x] = 0;
+        fCost[start.y * width + start.x] = abs(goal.x - start.x) + abs(goal.y - start.y);
+        push(myHeap, start, fCost, width);
+
+        while (!empty(myHeap)) {
+            Position current = pop(myHeap, fCost, width);
+
+            if (current.x == goal.x && current.y == goal.y) break;
+            if (visited[current.y * width + current.x]) continue;
+            visited[current.y * width + current.x] = true;
+
+            Position neighbors[4] = {
+                {current.x + 1, current.y}, {current.x - 1, current.y},
+                {current.x, current.y + 1}, {current.x, current.y - 1}
+            };
+
+            for (Position next : neighbors) {
+                if (next.x < 0 || next.x >= width || next.y < 0 || next.y >= height) continue;
+                if (grid[next.y * width + next.x] == OBSTACLE_SYMBOL || visited[next.y * width + next.x]) continue;
+
+                int newG = gCost[current.y * width + current.x] + 1;
+                if (newG < gCost[next.y * width + next.x]) {
+                    gCost[next.y * width + next.x] = newG;
+                    fCost[next.y * width + next.x] = newG + abs(goal.x - next.x) + abs(goal.y - next.y);
+                    cameFrom[next.y * width + next.x] = current;
+                    push(myHeap, next, fCost, width);
+                }
+            }
+        }
+
+        Position backtrack = goal;
+        int pathSize = 0;
+        while (!(backtrack.x == start.x && backtrack.y == start.y)) {
+            path[pathSize++] = backtrack;
+            backtrack = cameFrom[backtrack.y * width + backtrack.x];
+        }
+        return pathSize;
+    }
+
+
+
     inline int findAlternativePath(Position currentPos, Position targetPos, Position* foundPath,
-        int width, int height, char* grid, Constrait* constraints, int numConstraints, int currentIndex) {
+        int width, int height, char* grid, Constrait* constraints, int numConstraints, int currentIndex,
+        int* fCostLocal, int* gCostLocal, bool* visitedLocal, Position* cameFromLocal, MyHeap& myHeap) {
         const int MAX_PATH = 25;
         const int SEARCH_SIZE = 5;
 
@@ -59,7 +109,7 @@ namespace internal {
         Position directions[4] = { {1, 0}, {-1, 0}, {0, 1}, {0, -1} };
         int foundPathSize = 0;
 
-        while (queueStart < queueEnd) {
+        while (queueStart < queueEnd && queueEnd < 25) {
             Position current = queue[queueStart];
             int currentIdx = queueIndex[queueStart];
             queueStart++;
@@ -108,7 +158,7 @@ namespace internal {
                 queueEnd++;
             }
         }
-        return 0;
+        return -1;
     }
 
     inline void applyPathShift(Position* paths, int agentSizePath, int t, Position* foundPath, int foundPathSize) {
@@ -120,44 +170,51 @@ namespace internal {
         }
     }
 
-    bool handleCollision(int agentId, int conflictAgentId, unsigned char agentDirection, unsigned char conflictAgentDirection,
-        int agentSizePath, int conflictAgentSizePath, Position* pathsLocal, int& agentSizePathRef,
+    bool handleCollision(int agentId, int conflictAgentId, Agent* agents, 
+        Position* pathsLocal, 
         Position currentPos, Position nextGoal, Constrait* agentConstrait, int& agentConstraitSize,
-        int width, int height, char* grid, int timeStep) {
+        int width, int height, char* grid, int timeStep, 
+        int* fCostLocal, int* gCostLocal, bool* visitedLocal, Position* cameFromLocal, MyHeap& myHeap) {
 
-        if (!shouldYield(agentId, conflictAgentId, agentDirection, conflictAgentDirection, agentSizePath, conflictAgentSizePath)) {
+        if (!shouldYield(agentId, conflictAgentId, agents)) {
             return false;
         }
 
         agentConstrait[agentConstraitSize++] = { nextGoal.x, nextGoal.y, timeStep };
 
         Position foundPath[25];
-        int foundPathSize = findAlternativePath(currentPos, nextGoal, foundPath, width, height, grid, agentConstrait, agentConstraitSize, timeStep);
+        int foundPathSize = findAlternativePath(currentPos, nextGoal, foundPath, width, height, grid, agentConstrait, agentConstraitSize, timeStep, 
+            fCostLocal, gCostLocal, visitedLocal, cameFromLocal, myHeap);
 
         if (foundPathSize > 0) {
-            applyPathShift(pathsLocal, agentSizePathRef, timeStep, foundPath, foundPathSize);
-            agentSizePathRef += foundPathSize;
+            applyPathShift(pathsLocal, agents[agentId].sizePath, timeStep, foundPath, foundPathSize);
+            agents[agentId].sizePath += foundPathSize;
             return true;
+        }
+        else{
+            Agent& a = agents[agentId];
+            int pathSize =
+                foundPath = runAStarContrait({ a.x, a.y }, );
         }
 
         return false;
     }
-    void processAgentCollisions(sycl::nd_item<1> item, Position* paths, int* pathSizes,
-        int* width_height_loaderCount_unloaderCount_agentCount_minSize, char* grid,
-        Constrait* constrait, int* numberConstrait, Agent* agents) {
+
+    void processAgentCollisionsGPU(sycl::nd_item<1> item, MemoryPointers localMemory) {
 
         int agentId = item.get_local_id(0);  // Každý agent dostane svoje ID v rámci work-groupy
 
-        const int width = width_height_loaderCount_unloaderCount_agentCount_minSize[WIDTHS_INDEX];
-        const int agentCount = width_height_loaderCount_unloaderCount_agentCount_minSize[AGENTS_INDEX];
-        const int height = width_height_loaderCount_unloaderCount_agentCount_minSize[HEIGHTS_INDEX];
-        const unsigned char agentDirection = agents[agentId].direction;
+        const int agentCount = width_height_loaderCount_unloaderCount_agentCount[AGENTS_INDEX];
 
-        int offset = agentId * width * height;
-        Position* pathsLocal = &paths[offset];
-        int& agentSizePath = pathSizes[agentId];
+        const int width = width_height_loaderCount_unloaderCount_agentCount[WIDTHS_INDEX];
+        const int height = width_height_loaderCount_unloaderCount_agentCount[HEIGHTS_INDEX];
+        const int mapSize = width * height;
 
-        for (int t = 0; t < agentSizePath - 1; t++) {
+        int offset = agentId * mapSize;
+
+        MyHeap myHeap{ &openList[offset], 0 };
+
+        for (int t = 0; t < agents[agentId].sizePath - 1; t++) {
             item.barrier();
             Position currentPos = pathsLocal[t];
             Position nextPos = pathsLocal[t + 1];
@@ -165,20 +222,20 @@ namespace internal {
             int conflictAgentId = -1;
             Constrait conflictFuturePos = { -1, -1, -1 };
 
-            if (!checkCollision(agentId, t, nextPos, conflictAgentId, conflictFuturePos, paths, pathSizes, agentCount, width * height)) {
+            if (!checkCollision(agentId, t, nextPos, conflictAgentId, conflictFuturePos, paths, agentCount, width * height)) {
                 continue;
             }
 
             Constrait* agentConstrait = &constrait[agentId * (agentCount - 1)];
             int& agentConstraitSize = numberConstrait[agentId];
 
-            handleCollision(agentId, conflictAgentId, agentDirection, agents[conflictAgentId].direction,
-                agentSizePath, pathSizes[conflictAgentId], pathsLocal, agentSizePath, currentPos,
-                nextPos, agentConstrait, agentConstraitSize, width, height, grid, t);
+            handleCollision(agentId, conflictAgentId, agents,
+                pathsLocal, currentPos,
+                nextPos, agentConstrait, agentConstraitSize, width, height, grid, t, 
+                fCostLocal, gCostLocal, visitedLocal, cameFromLocal, myHeap);
         }
-        int* minSize = &(width_height_loaderCount_unloaderCount_agentCount_minSize[MIN_INDEX]);
         sycl::atomic_ref<int, sycl::memory_order::relaxed, sycl::memory_scope::device,
             sycl::access::address_space::global_space>  atomicMin(*minSize);
-        atomicMin.fetch_min(*minSize);
+        atomicMin.fetch_min(agents[agentId].sizePath);
     }
 }
