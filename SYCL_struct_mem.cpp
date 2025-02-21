@@ -1,8 +1,5 @@
-// NEPOUŽÍVAŤ std::fill - std::fill MÁ MÁLOKTORÁ INPLEMENTÁCIA
-
 #include <sycl/sycl.hpp>
 #include <iostream>
-#include <algorithm> // Pre std::fill
 
 struct Mem0{
     int *a, *b;
@@ -13,13 +10,20 @@ struct Mem1{
     int *c;
 };
 
-void fill0(Mem1 &m){
-    std::fill(m.m.a, m.m.a+10, 10);
-    std::fill(m.m.b, m.m.b+10, 20);
+inline void fill0(const Mem1 &m){
+    for (int i = 0; i < 10; i++) {
+        m.m.a[i] = 10;
+    }
+    for (int i = 0; i < 10; i++) {
+        m.m.b[i] = 20;
+    }
 }
 
-void fillAll(Mem1 &m){
-    std::fill(m.c, m.c+10, 30);
+inline void fillAll(const Mem1 &m){
+    for (int i = 0; i < 10; i++) {
+        m.c[i] = 30;
+    }
+    
     fill0(m);
 }
 
@@ -42,13 +46,24 @@ int main() {
         std::cerr << "Chyba alokácie pamäte na zariadení!" << std::endl;
         return 1;
     }
+    Mem1 mC = {{device_data0, device_data1}, device_data2};
 
     // Vytvorenie command group pre kernel
     queue.submit([&](sycl::handler& cgh) {
+        Mem1 m = mC;
+        /*
+        zakázané 
+        for (int i = 0; i < count; i++)    {
+            m.c[i] = i;
+        }
         cgh.single_task([=]() {
-            Mem1 m = {{device_data0, device_data1}, device_data2};
             fillAll(m);
         });
+        */
+        cgh.single_task([=]() {
+            fillAll(m);
+        });
+
     }).wait();
 
     // Kopírovanie dát späť na hostiteľa (ak je to potrebné)
@@ -76,6 +91,11 @@ int main() {
     std::cout << std::endl;
 
     // Uvoľnenie pamäte na zariadení
+    sycl::free(device_data0, queue);
+    sycl::free(device_data1, queue);
+    sycl::free(device_data2, queue);
+    return 0;
+}
     sycl::free(device_data0, queue);
     sycl::free(device_data1, queue);
     sycl::free(device_data2, queue);
