@@ -8,27 +8,18 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include "fill_init_convert.h"
 
 
 namespace internal_cpu {
     void parallelAStarPrimitive(Map& m) {
         std::vector<std::thread> threads;
         // Každý agent dostane vlastné vlákno na výpoèet cesty
-        for (int i = 0; i < m.agentCount; ++i) {
+        for (int i = 0; i < m.CPUMemory.agentCount; ++i) {
             threads.emplace_back([&, i]() {
-                internal::computePathForAgent(i, 
-                    m.width_height_loaderCount_unloaderCount_agentCount, 
-                    m.grid, 
-                    m.agents,
-                    m.loaderPosition, 
-                    m.unloaderPosition, 
-                    m.pathsAgent, 
-                    m.pathSizesAgent, 
-                    m.fCost, 
-                    m.gCost, 
-                    m.visited, 
-                    m.cameFrom, 
-                    m.openList);
+                MemoryPointers local;
+                internal::fillLocalMemory(m.CPUMemory, i, local);
+                internal::computePathForAgent(i, local);
                 });
         }
 
@@ -38,21 +29,14 @@ namespace internal_cpu {
         }
 
         threads.clear(); // Vyèistenie vlákien
-        internal::MyBarrier b(m.agentCount);
+        internal::MyBarrier b(m.CPUMemory.agentCount);
 
         // Spracovanie kolízií v paralelných vláknach
-        for (int i = 0; i < m.agentCount; ++i) {
+        for (int i = 0; i < m.CPUMemory.agentCount; ++i) {
             threads.emplace_back([&, i]() {
-                internal::processAgentCollisionsCPU(b, 
-                    i, 
-                    m.pathsAgent, 
-                    m.pathSizesAgent, 
-                    m.width_height_loaderCount_unloaderCount_agentCount,
-                    m.minSize, 
-                    m.grid, 
-                    m.constrait, 
-                    m.numberConstrait, 
-                    m.agents);
+                MemoryPointers local;
+                internal::fillLocalMemory(m.CPUMemory, i, local);
+                internal::processAgentCollisionsCPU(b, i, m.CPUMemory, local);
                 });
         }
 
@@ -61,16 +45,11 @@ namespace internal_cpu {
         }
 
         // Pohyb agentov v paralelných vláknach
-        for (int i = 0; i < m.agentCount; ++i) {
+        for (int i = 0; i < m.CPUMemory.agentCount; ++i) {
             threads.emplace_back([&, i]() {
-                internal::moveAgentForIndex(i, 
-                    m.agents, 
-                    m.pathsAgent, 
-                    m.pathSizesAgent, 
-                    m.loaderPosition, 
-                    m.unloaderPosition,
-                    m.width_height_loaderCount_unloaderCount_agentCount, 
-                    m.minSize);
+                MemoryPointers local;
+                internal::fillLocalMemory(m.CPUMemory, i, local);
+                internal::moveAgentForIndex(i, local);
                 });
         }
         for (auto& t : threads) {
@@ -81,7 +60,6 @@ namespace internal_cpu {
 
 
 double compute_cpu_primitive(AlgorithmType which, Map& m) {
-
     auto start_time = std::chrono::high_resolution_clock::now();
     switch (which) {
     case AlgorithmType::ASTAR:

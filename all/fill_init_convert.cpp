@@ -50,4 +50,38 @@ namespace internal {
         localMemory.fCost[getTrueIndexGrid(width, start.x, start.y)] = 0;
         push(myHeap, start, localMemory.fCost, width);
     }
+
+    std::vector<std::vector<Position>> getVector(Map& m) {
+        size_t offset = m.CPUMemory.width * m.CPUMemory.height;
+        std::vector<std::vector<Position>> result(m.CPUMemory.agentCount);
+
+        Position* ptr = m.CPUMemory.pathsAgent;
+        for (int i = 0; i < m.CPUMemory.agentCount; ++i) {
+            size_t pathSize = m.CPUMemory.agents[i].sizePath;
+            result[i].assign(ptr, ptr + pathSize);  // Skopírujeme dáta do vektora
+            ptr += offset;  // Posun na ïalšieho agenta
+        }
+        return result;
+    }
+
+
+    void pushVector(const std::vector<std::vector<Position>>& vec2D, Map& m) {
+        size_t offset = m.CPUMemory.width * m.CPUMemory.height;
+        Position* ptr = m.CPUMemory.pathsAgent;
+        for (int i = 0; i < m.CPUMemory.agentCount; ++i) {
+            const std::vector<Position>& row = vec2D[i];
+            std::copy(row.begin(), row.end(), ptr);
+            ptr += offset;
+            m.CPUMemory.agents[i].sizePath = row.size();
+        }
+    }
+
+    inline bool isSamePosition(const Position& a, const Position& b) {
+        return a.x == b.x && a.y == b.y;
+    }
+
+    int ManhattanHeuristic(const Position& a, const Position& b) {
+        return myAbs(a.x - b.x) + myAbs(a.y - b.y);
+    }
+
 }

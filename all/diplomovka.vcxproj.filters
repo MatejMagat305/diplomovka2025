@@ -90,6 +90,9 @@
     <ClCompile Include="fill_init_convert.cpp">
       <Filter>compute souce</Filter>
     </ClCompile>
+    <ClCompile Include="CBS.cpp">
+      <Filter>compute souce</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="changeScene.h">
@@ -135,6 +138,9 @@
       <Filter>compute headers</Filter>
     </ClInclude>
     <ClInclude Include="fill_init_convert.h">
+      <Filter>compute headers</Filter>
+    </ClInclude>
+    <ClInclude Include="CBS.h">
       <Filter>compute headers</Filter>
     </ClInclude>
   </ItemGroup>

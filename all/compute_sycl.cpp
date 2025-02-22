@@ -2,12 +2,13 @@
 #include <sycl/sycl.hpp>
 #include <iostream>
 #include <sstream>
+#include <chrono>
 #include "heap_primitive.h"
 #include "solve_conflicts.h"
 #include "a_star_algo.h"
 #include  "fill_init_convert.h"
 #include "move_agent.h"
-#include <chrono>
+#include "CBS.h"
 
 namespace internal_gpu {
     MemoryPointers GPUMemory;
@@ -121,7 +122,7 @@ namespace internal_gpu {
         q.wait();
     }
 
-    void parallelAStar(Map& m) {
+    void SYCL_AStar(Map& m) {
         sycl::queue& q = getQueue();
         int workSize = q.get_device().get_info<sycl::info::device::max_work_group_size>();
         // pohyb o minimálnu cestu 
@@ -166,12 +167,56 @@ namespace internal_gpu {
                 }
                 MemoryPointers localMemory;
                 internal::fillLocalMemory(globalMemory, id, localMemory);
-                internal::processAgentCollisionsGPU(item, localMemory);
+                internal::processAgentCollisionsGPU(item, localMemory, globalMemory);
                 });
             });
 
         collisionEvent.wait_and_throw();
     }
+
+
+    void HYBRID_AStar(Map& m) {
+        sycl::queue& q = getQueue();
+        int workSize = q.get_device().get_info<sycl::info::device::max_work_group_size>();
+        // pohyb o minimálnu cestu 
+        auto moveTO = q.submit([&](sycl::handler& h) {
+            MemoryPointers globalMemory = GPUMemory;
+            h.parallel_for(sycl::range<1>(std::min(workSize, m.CPUMemory.agentCount)), [=](sycl::id<1> idx) {
+                const int id = idx[0];
+                if (id > globalMemory.agentCount - 1 || *globalMemory.minSize < 1) {
+                    return;
+                }
+                MemoryPointers localMemory;
+                internal::fillLocalMemory(globalMemory, id, localMemory);
+                internal::moveAgentForIndex(id, localMemory);
+                });
+            });
+        // cesty
+        auto foundPathsAgent = q.submit([&](sycl::handler& h) {
+            h.depends_on(moveTO);
+            MemoryPointers globalMemory = GPUMemory;
+            h.parallel_for(sycl::range<1>(std::min(workSize, m.CPUMemory.agentCount)), [=](sycl::id<1> idx) {
+                const int id = idx[0];
+                if (id == 0) {
+                    *globalMemory.minSize = 2147483647; // nastav minSize pre daľší kernel
+                }
+                if (id > globalMemory.agentCount - 1) {
+                    return;
+                }
+                MemoryPointers localMemory;
+                internal::fillLocalMemory(globalMemory, id, localMemory);
+                internal::computePathForAgent(id, localMemory);
+                });
+            });
+        // kolízie
+        internal_gpu::synchronizeCPUFromGPU(m);
+        CTNode root;
+        root.paths = internal::getVector(m);
+        std::vector<std::vector<Position>> solution;
+        internal::resolveConflictsCBS(AlgorithmType::ASTAR, m, root, 1, solution);
+        internal::pushVector(solution, m);
+    }
+
 }
 
 
@@ -179,9 +224,26 @@ double computeSYCL(AlgorithmType which, Map& m) {
     auto start_time = std::chrono::high_resolution_clock::now();
     switch (which)    {
     case AlgorithmType::ASTAR:
-        internal_gpu::parallelAStar(m);
+        internal_gpu::SYCL_AStar(m);
         break;
     default:
+        internal_gpu::SYCL_AStar(m);
+        break;
+    }
+    auto end_time = std::chrono::high_resolution_clock::now();
+    return std::chrono::duration<double>(end_time - start_time).count();
+}
+
+
+
+double computeHYBRID(AlgorithmType which, Map& m) {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    switch (which) {
+    case AlgorithmType::ASTAR:
+        internal_gpu::HYBRID_AStar(m);
+        break;
+    default:
+        internal_gpu::HYBRID_AStar(m);
         break;
     }
     auto end_time = std::chrono::high_resolution_clock::now();

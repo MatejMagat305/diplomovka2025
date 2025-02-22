@@ -32,6 +32,6 @@ namespace internal {
         }
     };
 
-    inline void processAgentCollisionsGPU(sycl::nd_item<1> item, MemoryPointers& localMamory);
-    inline void processAgentCollisionsCPU(MyBarrier& b, MemoryPointers& localMamory);
+    inline void processAgentCollisionsGPU(sycl::nd_item<1> item, MemoryPointers& localMemory, const MemoryPointers& globalMemory);
+    inline void processAgentCollisionsCPU(MyBarrier& b, int agentId, MemoryPointers& localMemory, const MemoryPointers& globalMemory);
 }

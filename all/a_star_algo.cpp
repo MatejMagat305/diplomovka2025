@@ -1,6 +1,7 @@
 #include "a_star_algo.h"
 #include "fill_init_convert.h"
-
+#include "compute.h"
+#include <queue>
 
 namespace internal {
 
@@ -73,4 +74,84 @@ namespace internal {
         runAStar(localMemory, myHeap, start, goal);
         localMemory.agents[agentId].sizePath = reconstructPath(localMemory, start, goal);
     }
+    
+//====================== CPU HIGH LEVEL ===============================
+
+    std::vector<Position> ComputeASTAR(Map& m, int agentID, const std::vector<std::vector<Constrait>>& constraints) {
+        Agent& a = m.CPUMemory.agents[agentID];
+        Position start = Position{ a.x, a.y };
+        Position goal = (a.direction == AGENT_LOADER)
+            ? m.CPUMemory.loaderPosition[a.loaderCurrent]
+            : m.CPUMemory.unloaderPosition[a.unloaderCurrent];
+
+        std::priority_queue<Node, std::vector<Node>, std::greater<Node>> openSet;
+        std::map<Position, int> costSoFar;
+        std::map<Position, Node*> cameFrom;
+
+        openSet.emplace(start, 0, ManhattanHeuristic(start, goal));
+        costSoFar[start] = 0;
+
+        while (!openSet.empty()) {
+            Node current = openSet.top();
+            openSet.pop();
+
+            if (isSamePosition(current.pos, goal)) {
+                std::vector<Position> path;
+                Node* node = &current;
+                while (node) {
+                    path.push_back(node->pos);
+                    node = node->parent;
+                }
+                std::reverse(path.begin(), path.end());
+                return path;
+            }
+            std::vector<Position> neighbors = {
+                {current.pos.x + 1, current.pos.y},
+                {current.pos.x - 1, current.pos.y},
+                {current.pos.x, current.pos.y + 1},
+                {current.pos.x, current.pos.y - 1}
+            };
+
+            for (const auto& next : neighbors) {
+                if (next.x < 0 || next.y < 0 || next.x >= m.CPUMemory.width || next.y >= m.CPUMemory.height) continue;
+                if (m.CPUMemory.grid[getTrueIndexGrid(m.CPUMemory.width, next.x, next.y)] == OBSTACLE_SYMBOL) continue;
+
+                // Kontrola konfliktov v Constraint Tree
+                bool conflict = false;
+                auto constraintsAgent = constraints[agentID];
+                for (const auto& constraint : constraintsAgent) {
+                    Position actual{};
+                    actual.x = constraint.x;
+                    actual.y = constraint.y;
+                    if (isSamePosition(actual, next)) {
+                        conflict = true;
+                        break;
+                    }
+                }
+                if (conflict) continue;
+
+                int newCost = costSoFar[current.pos] + 1;
+                if (!costSoFar.count(next) || newCost < costSoFar[next]) {
+                    costSoFar[next] = newCost;
+                    Node* newNode = new Node(next, newCost, ManhattanHeuristic(next, goal), new Node(current.pos, current.g, current.h, current.parent));
+                    cameFrom[next] = newNode;
+                    openSet.push(*newNode);
+                }
+            }
+        }
+
+        return {}; // Ak nie je možné nájs cestu
+    }
+
+    std::vector<Position> ComputeCPUHIGHALGO(AlgorithmType which, Map& m, int agentID, const std::vector<std::vector<Constrait>>& constraints) {
+        switch (which) {
+        case AlgorithmType::ASTAR:
+            return ComputeASTAR(m, agentID, constraints);
+        default:
+            return ComputeASTAR(m, agentID, constraints);
+        }
+    }
+
+
+
 }

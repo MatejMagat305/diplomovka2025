@@ -84,6 +84,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="a_star_algo.cpp" />
+    <ClCompile Include="CBS.cpp" />
     <ClCompile Include="changeScene.cpp" />
     <ClCompile Include="compute_parallel_cpu.cpp" />
     <ClCompile Include="compute_parallel_cpu_primitive.cpp" />
@@ -108,6 +109,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="a_star_algo.h" />
+    <ClInclude Include="CBS.h" />
     <ClInclude Include="changeScene.h" />
     <ClInclude Include="compute.h" />
     <ClInclude Include="fill_init_convert.h" />
