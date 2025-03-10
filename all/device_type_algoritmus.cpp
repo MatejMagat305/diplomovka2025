@@ -37,7 +37,6 @@ void checksynchronizeCPU(Map& m, Info& result) {
 Info runOnGraphicCard(AlgorithmType algo, Map& m){
 	Info result{0,0};
 	checksynchronizeGPU(m, result);
-
 	Info resultCompute = computeSYCL(algo, m);
 	addInfo(result, resultCompute);
 	auto start_time = std::chrono::high_resolution_clock::now();
@@ -47,7 +46,6 @@ Info runOnGraphicCard(AlgorithmType algo, Map& m){
 	internal::countStepProcessor = internal::countStepGraphicCard;
 	return result;
 }
-
 
 Info runHybrid(AlgorithmType algo, Map& m) {
 	Info result{ 0,0 };
@@ -70,15 +68,23 @@ Info runPure(AlgorithmType algo, Map& m){
 	return result;
 }
 
-Info runHigh(AlgorithmType algo, Map& m, int numberThread){
+Info runPureOneThread(AlgorithmType algo, Map& m) {
 	Info result{ 0,0 };
 	checksynchronizeCPU(m, result);
-	Info resultCompute = computeCPU(algo, m, numberThread);
+	Info resultCompute = compute_cpu_primitive_one_thread(algo, m);
 	addInfo(result, resultCompute);
 	return result;
 }
 
-Info letCompute(AlgorithmType algo, ComputeType device, Map& m, int numberThread) {
+Info runHigh(AlgorithmType algo, Map& m){
+	Info result{ 0,0 };
+	checksynchronizeCPU(m, result);
+	Info resultCompute = computeCPU(algo, m);
+	addInfo(result, resultCompute);
+	return result;
+}
+
+Info letCompute(AlgorithmType algo, ComputeType device, Map& m) {
 	switch (device)	{
 	case ComputeType::pureGraphicCard:
 		return runOnGraphicCard(algo, m);
@@ -86,10 +92,12 @@ Info letCompute(AlgorithmType algo, ComputeType device, Map& m, int numberThread
 		return runHybrid(algo, m);
 	case ComputeType::pureProcesor:
 		return runPure(algo, m );
+	case ComputeType::pureProcesorOneThread:
+		return runPureOneThread(algo, m);
 	case ComputeType::highProcesor:
-		return runHigh(algo, m, numberThread);
+		return runHigh(algo, m);
 	default:
 		break;
 	}
-	return runHigh(algo, m, numberThread);
+	return runHigh(algo, m);
 }

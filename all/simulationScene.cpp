@@ -5,74 +5,77 @@
 #include "compute.h"
 
 void SimulationScene::switchComputeType() {
-    indexType = (indexType + 1) % method.size();
-    buttonMsg = stringMap[method[indexType]];
+    mem->indexType = (mem->indexType + 1) % mem->method.size();
+    mem->buttonMsg = mem->stringMap[mem->method[mem->indexType]];
 }
 
 void SimulationScene::runSimulation() {
-    if (isRunning) {
+    if (mem->isRunning) {
         return;
     }
-    std::lock_guard<std::mutex> lock(simMutex);
-    if (isRunning) {
-        return;
+    {
+        std::lock_guard<std::mutex> lock(mem->simMutex);
+        if (mem->isRunning) {
+            return;
+        }
+        mem->isRunning = true;
     }
-    isRunning = true;
-    simThread = std::thread([this]() {
-        i = letCompute(AlgorithmType::ASTAR, method[indexType], *map, 1);
-        hasInfo = true;
+    mem->simThread = std::thread([this]() {
+        mem->i = letCompute(AlgorithmType::DSTAR, mem->method[mem->indexType], *mem->map);
+        mem->hasInfo = true;
         });
 }
 
-SimulationScene::SimulationScene(Map* map) : map(map) {
-    method.reserve(4);
-    // method.emplace_back(ComputeType::pureProcesor);
-    // method.emplace_back(ComputeType::pureGraphicCard);
-    method.emplace_back(ComputeType::hybridGPUCPU);
-    method.emplace_back(ComputeType::highProcesor);
-    indexType = 0;
-    buttonMsg = "CBS algoritmus on gpu-cpu";
-    //buttonMsg = "non-optimal gpu algoritmus on cpu";
-    // stringMap.emplace(ComputeType::pureProcesor, buttonMsg);
-    // stringMap.emplace(ComputeType::pureGraphicCard, "non-optimal gpu algoritmus");
-    stringMap.emplace(ComputeType::highProcesor, "CBS algoritmus on only cpu");
-    stringMap.emplace(ComputeType::hybridGPUCPU, buttonMsg);
+SimulationScene::SimulationScene(Map* map) {
+    mem = new MemSimulation();
+    mem->map = map;
+    mem->method.reserve(5);
+    mem->method.emplace_back(ComputeType::pureProcesor);
+    mem->method.emplace_back(ComputeType::pureProcesorOneThread);
+    mem->method.emplace_back(ComputeType::pureGraphicCard);
+    mem->method.emplace_back(ComputeType::hybridGPUCPU);
+    mem->method.emplace_back(ComputeType::highProcesor);
+    mem->indexType = 0;
+    mem->buttonMsg = "repeat D* gpu algoritmus on cpu 1 thread";
+    mem->stringMap.emplace(ComputeType::pureProcesor, mem->buttonMsg);
+    mem->stringMap.emplace(ComputeType::pureProcesorOneThread, "repeat D* gpu algoritmus on cpu 1 thread");
+    mem->stringMap.emplace(ComputeType::pureGraphicCard, "non-optimal gpu algoritmus");
+    mem->stringMap.emplace(ComputeType::highProcesor, "CBS algoritmus on only cpu");
+    mem->stringMap.emplace(ComputeType::hybridGPUCPU, "CBS algoritmus on combination gpu and cpu");
     initializeSYCLMemory(*map);
 	synchronizeGPUFromCPU(*map);
 }
 
-Scene* SimulationScene::DrawControl() {
-    map->draw(GetWindowWidth(), GetWindowHeight() - 50);
+SimulationScene::SimulationScene(MemSimulation* mem) : mem(mem) {}
 
+Scene* SimulationScene::DrawControl() {
+    mem->map->draw2(GetWindowWidth(), GetWindowHeight()-40, 1);
     if (GuiButton(Rectangle{ 50, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Back")) {
-        isRunning = false;
-        if (simThread.joinable()) {
-            simThread.join();
+        mem->isRunning = false;
+        if (mem->simThread.joinable()) {
+            mem->simThread.join();
         }
-        Scene* r = new ViewScene(map);
-        map = nullptr;
+        Scene* r = new ViewScene(mem->map);
+        mem->map = nullptr;
         return r;
+
     }
-    if (!isRunning && GuiButton(Rectangle{ 270, static_cast<float>(GetWindowHeight()) - 40, 200, 30 }, buttonMsg.c_str())) {
+    if (!mem->isRunning && GuiButton(Rectangle{ 270, static_cast<float>(GetWindowHeight()) - 40, 200, 30 }, mem->buttonMsg.c_str())) {
         switchComputeType();
     }
 
-    if (!isRunning && GuiButton(Rectangle{ 160, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Run")) {
+    if (!mem->isRunning && GuiButton(Rectangle{ 160, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Run")) {
         runSimulation();
     }
-    if (hasInfo){
-        Scene* result = new InfoScene(map, i);
-        map = nullptr;
-        return result;
+    if (mem->hasInfo){
+        Scene* r = new InfoScene(mem);
+        mem = nullptr;
+        return r;
     }
     return this;
 }
-
 SimulationScene::~SimulationScene() {
-    if (simThread.joinable()) {
-        simThread.join();
-    }
-    if (map != nullptr) {
-        delete map;
+    if (mem != nullptr){
+        delete mem;
     }
 }

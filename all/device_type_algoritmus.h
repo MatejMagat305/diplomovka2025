@@ -3,7 +3,7 @@
 
 
 enum class AlgorithmType {
-    ASTAR,
+    DSTAR,
     // DIJKSTRA TODO later
 };
 
@@ -11,6 +11,7 @@ enum class ComputeType {
     pureGraphicCard,
     hybridGPUCPU,
     pureProcesor,
+    pureProcesorOneThread,
     highProcesor
 };
 
@@ -18,6 +19,4 @@ struct Info{
     int timeRun, timeSynchronize;
 };
 
-Info letCompute(AlgorithmType algo, ComputeType device, Map& m, int numberThread);
-
-void checksynchronizeGPU(Map& m, Info& result);
+Info letCompute(AlgorithmType algo, ComputeType device, Map& m);

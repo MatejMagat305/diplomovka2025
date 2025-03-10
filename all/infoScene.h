@@ -1,16 +1,15 @@
 #pragma once
 #include "scene.h"
 #include "device_type_algoritmus.h"
+#include "memSimulation.h"
+
 
 class InfoScene :  public Scene{
 private:
-    Map* map;
-    Info i;
+    MemSimulation* mem;
 
 public:
-
-    InfoScene(Map* mm, Info ii);
-
+    InfoScene(MemSimulation* s0);
     Scene* DrawControl() override;
     ~InfoScene();
 };

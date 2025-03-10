@@ -1,5 +1,4 @@
 #include "viewScene.h"
-
 #include "mainScene.h"
 #include "parameterScene.h"
 #include "simulationScene.h"
@@ -9,12 +8,8 @@
 Scene* ViewScene::DrawControl() {
     map->draw(GetWindowWidth(), GetWindowHeight() - 50);
 
-    // Buffer na text a boolean na kontrolu aktivácie textového po¾a
-    static char textBoxBuffer[128] = "";  // Buffer pre text
-    static bool textBoxEditMode = false;  // Boolean pre editáciu textového po¾a
-
     // Textové pole
-    if (GuiTextBox(Rectangle{ 650, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, textBoxBuffer, 128, textBoxEditMode)) {
+    if (GuiTextBox(Rectangle{ 750, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, textBoxBuffer, 128, textBoxEditMode)) {
         textBoxEditMode = !textBoxEditMode; // Zmena režimu editácie pri kliknutí
     }
 
@@ -55,4 +50,12 @@ ViewScene::~ViewScene() {
     if (map != nullptr) {
         delete map;
     }
+    delete[] textBoxBuffer;
+}
+
+ViewScene::ViewScene(Map* map) : map(map) {
+    textBoxBuffer = new char[128];
+    char temt[128] = "world";
+    std::copy(temt, temt + std::strlen(temt) + 1, textBoxBuffer);
+    textBoxEditMode = false;
 }

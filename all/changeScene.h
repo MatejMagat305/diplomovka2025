@@ -7,6 +7,9 @@ class ChangeScene : public Scene{
 	Map *map = nullptr;
     void HandleGridClick();
     void SwapGridCells(int x, int y);
+    void controlSwapAgent(Position current, Position prev);
+    void controlSwapLoader(Position current, Position prev);
+    void controlSwapUnloader(Position current, Position prev);
     void AddObjectToMap(char objectType);
     void AddAgent(int x, int y);
     void AddLoader(int x, int y);

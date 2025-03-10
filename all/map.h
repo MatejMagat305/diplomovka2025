@@ -18,15 +18,22 @@
 // nno map symbol
 #define AGENT_SYMBOL 'A'
 
-
 struct Position {
     int x, y;
 
-    // Operator < na správne porovnávanie v std::map a std::priority_queue
-    bool operator<(const Position& other) const {
-        return std::tie(x, y) < std::tie(other.x, other.y);
-    }
+    bool operator<(const Position& other) const;
+    bool operator==(const Position& other) const;
+    bool operator!=(const Position& other) const;
 };
+
+// Špecializácia hash funkcie pre `Position`
+namespace std {
+    template<>
+    struct hash<Position> {
+        size_t operator()(const Position& p) const noexcept;
+    };
+}
+
 
 struct Agent {
     int x = 0, y = 0, sizePath = 0;
@@ -35,79 +42,41 @@ struct Agent {
     unsigned char direction;
 };
 
+
+#define MOVE_CONSTRATINT 1
 struct Constrait {
-    int index, x, y;
+    Position to;
+	int type, timeStep;
 };
 
-struct PositionOwner {
-    Position pos1, pos2;
-    int agentID1, agentID2;
-    PositionOwner(Position p1, Position p2, int id1, int id2) : pos1(p1), pos2(p2), agentID1(id1), agentID2(id2) {}
-    bool operator==(const PositionOwner& other) const {
-        return pos2.x == other.pos2.x && pos2.y == other.pos2.y
-            && pos1.x == other.pos1.x && pos1.y == other.pos1.y
-            && agentID1 == other.agentID1 && agentID2 == other.agentID2;
-    }
-    bool operator!=(const PositionOwner& other) const {
-        return !(*this == other);
-    }
-};
-
-struct PositionOwnerHash {
-    std::size_t operator()(const PositionOwner& p) const {
-        std::size_t seed = 0;
-        seed ^= std::hash<int>{}(p.agentID1) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<int>{}(p.agentID2) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<int>{}(p.pos1.x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<int>{}(p.pos1.y) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<int>{}(p.pos2.x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        seed ^= std::hash<int>{}(p.pos2.y) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-        return seed;
-    }
-};
-
-struct CTNode {
-    std::vector<std::vector<Position>> paths;
-    std::vector<std::vector<Constrait>> constraints;
-    std::unordered_set<PositionOwner, PositionOwnerHash> conflicts;
-
-    bool operator>(const CTNode& other) const {
-        return (conflicts.size() > other.conflicts.size());
-    }
-};
-
-struct Node {
+struct HeapPositionNode {
     Position pos;
-    int g, h, f;
-    Node* parent;
+    int priority;
+};
 
-    Node(Position pos, int g, int h, Node* parent = nullptr)
-        : pos(pos), g(g), h(h), f(g + h), parent(parent) {
-    }
-
-    bool operator>(const Node& other) const {
-        return f > other.f;
-    }
+struct positionHeap {
+    HeapPositionNode* heap;
+    int size;
 };
 
 struct MemoryPointers{
-    int width, height, loaderCount, unloaderCount, agentCount;
+    int width, height, loadersCount, unloadersCount, agentsCount;
     char* grid = nullptr;
-    Position* loaderPosition = nullptr;
-    Position* unloaderPosition = nullptr;
+    Position* loaderPositions = nullptr;
+    Position* unloaderPositions = nullptr;
     Agent* agents = nullptr;
 
-    int* minSize = nullptr;
-    Position* pathsAgent = nullptr;
+    int* minSize_numberColision = nullptr;
+    Position* agentPaths = nullptr;
 
     int* gCost = nullptr;
-    int* fCost = nullptr;
+    int* fCost_rhs = nullptr;
     Position* cameFrom = nullptr;
     bool* visited = nullptr;
 
-    Position* openList = nullptr;
-    Constrait* constrait = nullptr;
-    int* numberConstrait = nullptr;
+    HeapPositionNode* openList = nullptr;
+    Constrait* constraits = nullptr;
+    int* numberConstraits = nullptr;
 };
 
 class Map {
@@ -161,3 +130,4 @@ public:
 // ak zvýši èas TODO MULTIPLATFORM
 long long getFreeRam();
 
+std::vector<std::string> getSavedFiles(const std::string& folder, const std::string& extension);

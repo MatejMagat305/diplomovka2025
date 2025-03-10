@@ -2,11 +2,7 @@
 #include "map.h"
 #include <sycl/sycl.hpp>
 
-struct MyHeap {
-    Position* heap;
-    int size;
-};
 
-SYCL_EXTERNAL void push(MyHeap& myHeap, Position p, int* gCost, int width);
-SYCL_EXTERNAL Position pop(MyHeap& myHeap, int* gCost, int width);
-SYCL_EXTERNAL bool empty(MyHeap& myHeap);
+SYCL_EXTERNAL void push(positionHeap& myHeap, Position p, int priority);
+SYCL_EXTERNAL Position pop(positionHeap& myHeap);
+SYCL_EXTERNAL bool empty(positionHeap& myHeap);

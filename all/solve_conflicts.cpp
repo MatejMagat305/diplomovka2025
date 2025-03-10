@@ -1,194 +1,230 @@
-#include "solve_conflicts.h"
+ï»¿#include "solve_conflicts.h"
 #include "map.h"
 #include "heap_primitive.h"
 #include <limits>
 #include <thread> 
 #include "fill_init_convert.h"
+#include "d_star_algo.h"
 
 int max_path(MemoryPointers& localMemory) {
-	int maxSize = localMemory.agents[0].sizePath;
-	int agentCount = localMemory.agentCount;
-	for (int i = 1; i < agentCount; i++) {
-		int candidate = localMemory.agents[i].sizePath;
-		if (maxSize < candidate) {
-			maxSize = candidate;
-		}
-	}
-	return maxSize;
+    int maxSize = localMemory.agents[0].sizePath;
+    int agentCount = localMemory.agentsCount;
+    for (int i = 1; i < agentCount; i++) {
+        int candidate = localMemory.agents[i].sizePath;
+        if (maxSize < candidate) {
+            maxSize = candidate;
+        }
+    }
+    return maxSize;
 }
 
 void writeMinimalPath(const MemoryPointers& globalMemory) {
-	int minSize = globalMemory.agents[0].sizePath;
-	for (int i = 1; i < globalMemory.agentCount; i++) {
-		int candidate = globalMemory.agents[i].sizePath;
-		if (candidate < minSize) {
-			minSize = candidate;
-		}
-	}
-	*globalMemory.minSize = minSize;
-}
-
-void applyPathShift(Position* paths, int agentSizePath, int t, Position* foundPath, int foundPathSize) {
-	for (int moveIdx = agentSizePath - 1; moveIdx > t; moveIdx--) {
-		paths[moveIdx + foundPathSize] = paths[moveIdx];
-	}
-	for (int i = 0; i < foundPathSize; i++) {
-		paths[t + 1 + i] = foundPath[foundPathSize - 1 - i];
-	}
+    int minSize = globalMemory.agents[0].sizePath;
+    for (int i = 1; i < globalMemory.agentsCount; i++) {
+        int candidate = globalMemory.agents[i].sizePath;
+        if (candidate < minSize) {
+            minSize = candidate;
+        }
+    }
+    *globalMemory.minSize_numberColision = minSize;
 }
 
 bool checkCollision(int agentId, int& conflictAgentId, int t, Constrait& conflictFuturePos, const MemoryPointers& globalMemory) {
-	const int mapSize = globalMemory.width * globalMemory.height;
-	Position* pathAgent = &globalMemory.pathsAgent[agentId * mapSize];
-	Position nextPos = pathAgent[t + 1];
+    const int mapSize = globalMemory.width * globalMemory.height;
+    Position* pathAgent = &globalMemory.agentPaths[agentId * mapSize];
+    Position nextPos = pathAgent[t + 1];
+    Position currentPos = pathAgent[t];
 
-	for (int agentId2 = 0; agentId2 < globalMemory.agentCount; agentId2++) {
-		if (agentId == agentId2) continue;
-		Position* pathOther = &globalMemory.pathsAgent[agentId2 * mapSize];
-		int otherPathSize = globalMemory.agents[agentId2].sizePath;
+    for (int agentId2 = 0; agentId2 < globalMemory.agentsCount; agentId2++) {
+        if (agentId == agentId2) continue;
 
-		if (t >= otherPathSize - 1) continue;
+        Position* pathOther = &globalMemory.agentPaths[agentId2 * mapSize];
+        int otherPathSize = globalMemory.agents[agentId2].sizePath;
 
-		Position otherNextPos = pathOther[t + 1];
+        if (t >= otherPathSize - 1) continue;
 
-		if (otherNextPos.x == nextPos.x && otherNextPos.y == nextPos.y) {
-			conflictAgentId = agentId2;
-			conflictFuturePos = { otherNextPos.x, otherNextPos.y, t };
-			return true;
-		}
-	}
-	return false;
+        Position otherNextPos = pathOther[t + 1];
+        Position otherCurrentPos = pathOther[t];
+
+        if (nextPos.x == otherCurrentPos.x && nextPos.y == otherCurrentPos.y &&
+            otherNextPos.x == currentPos.x && otherNextPos.y == currentPos.y) {
+            conflictAgentId = agentId2;
+            conflictFuturePos = { otherNextPos, MOVE_CONSTRATINT | (agentId2 << 2), t };
+            return true;
+        }
+
+        if (otherNextPos.x == nextPos.x && otherNextPos.y == nextPos.y) {
+            conflictAgentId = agentId2;
+            conflictFuturePos = { otherNextPos, MOVE_CONSTRATINT | (agentId2 << 2), t };
+            return true;
+        }
+    }
+    return false;
 }
+
+void lookRemoveOldConstrait(int agentID, const MemoryPointers& globalMemory, MemoryPointers& localMemory) {
+    int count = localMemory.numberConstraits[agentID], newCount = 0, mapSize = localMemory.height*localMemory.width;
+    if (count == 0) return;
+    Constrait* constraints = localMemory.constraits;
+    for (int i = 0; i < count; i++){
+        Constrait c = constraints[i];
+        Position p = c.to;
+        int t = c.timeStep, otherID = (c.type >> 2);
+        Agent a = globalMemory.agents[otherID];
+        if (a.sizePath <= t){
+            continue;
+        }
+        Position otherP = globalMemory.agentPaths[otherID * mapSize + t];
+        if (otherP.x != p.x || otherP.y != p.y){
+            continue;
+        }
+        constraints[newCount] = c;
+        newCount++;
+    }
+    localMemory.numberConstraits[agentID] = newCount;
+}
+
 
 bool shouldYield(int agentId, int conflictAgentId, Agent* agents) {
-	Agent& a = agents[agentId], & b = agents[conflictAgentId];
-	if (a.direction != b.direction) {
-		return (a.direction == AGENT_LOADER);
-	}
-	if (a.sizePath != b.sizePath) {
-		return (a.sizePath > b.sizePath);
-	}
-	return (agentId > conflictAgentId);
+    Agent& a = agents[agentId], & b = agents[conflictAgentId];
+    if (a.direction != b.direction) {
+        return (a.direction == AGENT_LOADER);
+    }
+    if (a.sizePath != b.sizePath) {
+        return (a.sizePath > b.sizePath);
+    }
+    return (agentId > conflictAgentId);
 }
 
-int runAStarContrait(Position start, Position goal, MemoryPointers& localMemory, int startTime, int agentID) {
-	MyHeap myHeap{ localMemory.openList, 0 };
-	initializeCostsAndHeap(localMemory, myHeap, start);
-
-	while (!empty(myHeap)) {
-		Position current = pop(myHeap, localMemory.fCost, localMemory.width);
-		int trueIndex = getTrueIndexGrid(localMemory.width, current.x, current.y);
-		int currentTime = localMemory.gCost[trueIndex]; // Použijeme G-cost ako èasový krok
-
-		if (current.x == goal.x && current.y == goal.y) break;
-		if (localMemory.visited[trueIndex]) continue;
-
-		localMemory.visited[trueIndex] = true;
-
-		Position neighbors[4] = {
-			{current.x + 1, current.y}, {current.x - 1, current.y},
-			{current.x, current.y + 1}, {current.x, current.y - 1}
-		};
-
-		for (Position next : neighbors) {
-			if (next.x < 0 || next.x >= localMemory.width || next.y < 0 || next.y >= localMemory.height) continue;
-
-			int nextTrueIndex = getTrueIndexGrid(localMemory.width, next.x, next.y);
-			if (localMemory.grid[nextTrueIndex] == OBSTACLE_SYMBOL || localMemory.visited[nextTrueIndex]) continue;
-
-			// **KONTROLA CONSTRAINTOV**
-			bool isBlocked = false;
-			for (int c = 0; c < localMemory.numberConstrait[agentID]; c++) {  // Predpokladáme max constraints
-				if (localMemory.constrait[c].x == next.x &&
-					localMemory.constrait[c].y == next.y &&
-					localMemory.constrait[c].index == (currentTime + 1)) {  // Pozor na èasový krok
-					isBlocked = true;
-					break;
-				}
-			}
-			if (isBlocked) continue;  // Preskoèíme túto pozíciu, ak je zakázaná v èase
-
-			int newG = currentTime + 1; // Každý pohyb zvýši èasový krok
-			if (newG < localMemory.gCost[nextTrueIndex]) {
-				localMemory.gCost[nextTrueIndex] = newG;
-				localMemory.fCost[nextTrueIndex] = newG + myAbs(goal.x - next.x) + myAbs(goal.y - next.y);
-				localMemory.cameFrom[nextTrueIndex] = current;
-				push(myHeap, next, localMemory.fCost, localMemory.width);
-			}
-		}
-	}
-
-	Position backtrack = goal;
-	int pathSize = 0;
-	while (!(backtrack.x == start.x && backtrack.y == start.y)) {
-		localMemory.pathsAgent[pathSize++] = backtrack;
-		backtrack = localMemory.cameFrom[getTrueIndexGrid(localMemory.width, backtrack.x, backtrack.y)];
-	}
-	return pathSize;
+void processAgentCollisionsGPU(const MemoryPointers& globalMemory, MemoryPointers& localMemory, sycl::nd_item<1> item) {
+    int agentID = item.get_local_id(0);
+    sycl::atomic_ref<int, sycl::memory_order::relaxed, sycl::memory_scope::device,
+        sycl::access::address_space::global_space>
+        collision_flag(*globalMemory.minSize_numberColision);
+    collision_flag.fetch_or(1);
+    positionHeap heap = { localMemory.openList, 0 };
+    computePathForAgent_DStar(agentID, localMemory, heap);
+    Agent a = localMemory.agents[agentID];
+    Position start = { a.x, a.y };
+    Position goal;
+    if (a.direction == AGENT_LOADER) {
+        goal = localMemory.loaderPositions[a.loaderCurrent];
+    }
+    else {
+        goal = localMemory.unloaderPositions[a.unloaderCurrent];
+    }
+    while (true) {
+        item.barrier();
+        if (collision_flag.load() == 0) { break; }
+        localMemory.agents[agentID].sizePath = reconstructPath(agentID, localMemory, start, goal);
+        item.barrier();
+        if (agentID == 0) { collision_flag.store(0); }
+        int pathSize = localMemory.agents[agentID].sizePath;
+        lookRemoveOldConstrait(agentID, globalMemory, localMemory);
+        for (int timeStep = 0; timeStep < pathSize - 1; timeStep++) {
+            int conflictAgentId = -1;
+            Constrait conflictFuturePos = { { -1, -1 }, -1, -1 };
+            if (checkCollision(agentID, conflictAgentId, timeStep, conflictFuturePos, globalMemory) &&
+                shouldYield(agentID, conflictAgentId, localMemory.agents)) {
+                int indexTopConstrait = localMemory.numberConstraits[agentID];
+                localMemory.constraits[indexTopConstrait] = conflictFuturePos;
+                localMemory.numberConstraits[agentID] += 1;
+                collision_flag.fetch_or(1);
+                int conflictIndex = getTrueIndexGrid(localMemory.width, conflictFuturePos.to.x, conflictFuturePos.to.y);
+                updateVertex_DStar(agentID, localMemory, heap, localMemory.cameFrom[conflictIndex], goal);
+                computeShortestPath_DStar(agentID, localMemory, heap, start, goal);
+                break;
+            }
+        }
+    }
 }
 
-int solveCollision(int timeStep, MemoryPointers& localMemory, int agentId, bool& skip, const MemoryPointers& globalMemory) {
-	const int mapSize = localMemory.width * localMemory.height;
-	if (timeStep >= localMemory.agents[agentId].sizePath - 1) {
-		skip = true;
-	}
-	else {
-		int conflictAgentId = -1;
-		Constrait conflictFuturePos = { -1, -1, -1 };
-
-		if (checkCollision(agentId, conflictAgentId, timeStep, conflictFuturePos, globalMemory)) {
-			Position currentPos = localMemory.pathsAgent[agentId * mapSize + timeStep];
-			Position nextGoal = localMemory.pathsAgent[agentId * mapSize + timeStep + 1];
-
-			if (shouldYield(agentId, conflictAgentId, localMemory.agents)) {
-				int indexTopConstrait = localMemory.numberConstrait[agentId];
-				localMemory.constrait[indexTopConstrait] = { nextGoal.x, nextGoal.y, timeStep };
-				localMemory.numberConstrait[agentId] += 1;
-				return runAStarContrait(currentPos, nextGoal, localMemory, timeStep, agentId);
-			}
-		}
-	}
-	return 0;
+void processAgentCollisionsCPU(const MemoryPointers& globalMemory, MemoryPointers& localMemory, MyBarrier& item, int agentID) {
+    std::atomic<int>& collision_flag = reinterpret_cast<std::atomic<int>&>(*globalMemory.minSize_numberColision);
+    collision_flag.fetch_or(1);
+    positionHeap heap = { localMemory.openList, 0 };
+    computePathForAgent_DStar(agentID, localMemory, heap);
+    Agent a = localMemory.agents[agentID];
+    Position start = { a.x, a.y };
+    Position goal;
+    if (a.direction == AGENT_LOADER) {
+        goal = localMemory.loaderPositions[a.loaderCurrent];
+    }
+    else {
+        goal = localMemory.unloaderPositions[a.unloaderCurrent];
+    }
+    while (true) {
+        item.barrier();
+        if (collision_flag.load() == 0) { break; }
+        localMemory.agents[agentID].sizePath = reconstructPath(agentID, localMemory, start, goal);
+        item.barrier();
+        if (agentID == 0) { collision_flag.store(0); }
+        int pathSize = localMemory.agents[agentID].sizePath;
+        lookRemoveOldConstrait(agentID, globalMemory, localMemory);
+        for (int timeStep = 0; timeStep < pathSize - 1; timeStep++) {
+            int conflictAgentId = -1;
+            Constrait conflictFuturePos = { { -1, -1 }, -1, -1 };
+            if (checkCollision(agentID, conflictAgentId, timeStep, conflictFuturePos, globalMemory) &&
+                shouldYield(agentID, conflictAgentId, localMemory.agents)) {
+                int indexTopConstrait = localMemory.numberConstraits[agentID];
+                localMemory.constraits[indexTopConstrait] = conflictFuturePos;
+                localMemory.numberConstraits[agentID] += 1;
+                collision_flag.fetch_or(1);
+                int conflictIndex = getTrueIndexGrid(localMemory.width, conflictFuturePos.to.x, conflictFuturePos.to.y);
+                updateVertex_DStar(agentID, localMemory, heap, localMemory.cameFrom[conflictIndex], goal);
+                computeShortestPath_DStar(agentID, localMemory, heap, start, goal);
+                break;
+            }
+        }
+    }
 }
 
-void processAgentCollisionsGPU(sycl::nd_item<1> item, MemoryPointers& localMemory, const MemoryPointers& globalMemory) {
-	int agentId = item.get_local_id(0);
-	localMemory.numberConstrait[agentId] = 0;
-	bool skip = false;
-	for (int timeStep = 0;; timeStep++) {
-		if (timeStep >= max_path(localMemory)) {
-			break;
-		}
-		int pathSize = 0;
-		if (!skip) {
-			pathSize = solveCollision(timeStep, localMemory, agentId, skip, globalMemory);
-		}
-		item.barrier();
-		if (pathSize > 0) {
-			Agent& a = localMemory.agents[agentId];
-			applyPathShift(localMemory.pathsAgent, a.sizePath, timeStep, localMemory.pathsAgent, pathSize);
-			a.sizePath += pathSize;
-		}
-	}
-}
+void processAgentCollisionsCPUOneThread(const MemoryPointers& globalMemory) {
+    int collision_flag = 1;
+    int agentCount = globalMemory.agentsCount;
+    std::vector<MemoryPointers> localMemorys(agentCount);
+    std::vector<positionHeap> heaps(agentCount);
+    std::vector<Position> starts(agentCount);
+    std::vector<Position> goals(agentCount);
 
-void processAgentCollisionsCPU(MyBarrier& b, int agentId, MemoryPointers& localMemory, const MemoryPointers& globalMemory) {
-	localMemory.numberConstrait[agentId] = 0;
-	bool skip = false;
-	for (int timeStep = 0;; timeStep++) {
-		int maxIndex = max_path(localMemory);
-		if (timeStep >= maxIndex) {
-			break;
-		}
-		int pathSize = 0;
-		if (!skip) {
-			pathSize = solveCollision(timeStep, localMemory, agentId, skip, globalMemory);
-		}
-		b.barrier();
-		if (pathSize > 0) {
-			Agent& a = localMemory.agents[agentId];
-			applyPathShift(localMemory.pathsAgent, a.sizePath, timeStep, localMemory.pathsAgent, pathSize);
-			a.sizePath += pathSize;
-		}
-	}
+    for (int agentID = 0; agentID < agentCount; agentID++){
+        fillLocalMemory(globalMemory, agentID, localMemorys[agentID]);
+        heaps[agentID] = {localMemorys[agentID].openList, 0};
+        computePathForAgent_DStar(agentID, localMemorys[agentCount], heaps[agentID]);
+        Agent a = localMemorys[agentID].agents[agentID];
+        starts[agentID] = { a.x, a.y };
+        if (a.direction == AGENT_LOADER) {
+            goals[agentID] = localMemorys[agentID].loaderPositions[a.loaderCurrent];
+        }
+        else {
+            goals[agentID] = localMemorys[agentID].unloaderPositions[a.unloaderCurrent];
+        }
+    }
+    while (true) {
+        if (collision_flag == 0) { break; }
+        collision_flag = 0;
+        for (int agentID = 0; agentID < agentCount; agentID++) {
+            localMemorys[agentID].agents[agentID].sizePath = reconstructPath(agentID, localMemorys[agentID], starts[agentID], goals[agentID]);
+        }
+        for (int agentID = 0; agentID < agentCount; agentID++) {
+            MemoryPointers& localMemory = localMemorys[agentID];
+            int pathSize = localMemory.agents[agentID].sizePath;
+            lookRemoveOldConstrait(agentID, globalMemory, localMemory);
+            for (int timeStep = 0; timeStep < pathSize - 1; timeStep++) {
+                int conflictAgentId = -1;
+                Constrait conflictFuturePos = { { -1, -1 }, -1, -1 };
+                if (checkCollision(agentID, conflictAgentId, timeStep, conflictFuturePos, globalMemory) &&
+                    shouldYield(agentID, conflictAgentId, localMemory.agents)) {
+                    int indexTopConstrait = localMemory.numberConstraits[agentID];
+                    localMemory.constraits[indexTopConstrait] = conflictFuturePos;
+                    localMemory.numberConstraits[agentID] += 1;
+                    collision_flag = 1;
+                    int conflictIndex = getTrueIndexGrid(localMemory.width, conflictFuturePos.to.x, conflictFuturePos.to.y);
+                    updateVertex_DStar(agentID, localMemory, heaps[agentID], localMemory.cameFrom[conflictIndex], goals[agentID]);
+                    computeShortestPath_DStar(agentID, localMemory, heaps[agentID], starts[agentID], goals[agentID]);
+                    break;
+                }
+            }
+        }
+    }
 }

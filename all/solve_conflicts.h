@@ -1,6 +1,5 @@
 #pragma once
 #include "heap_primitive.h"
-#include "a_star_algo.h"
 
 #include <iostream>
 #include <thread>
@@ -32,6 +31,8 @@ public:
     }
 };
 
-SYCL_EXTERNAL void processAgentCollisionsGPU(sycl::nd_item<1> item, MemoryPointers& localMemory, const MemoryPointers& globalMemory);
-void processAgentCollisionsCPU(MyBarrier& b, int agentId, MemoryPointers& localMemory, const MemoryPointers& globalMemory);
+SYCL_EXTERNAL void processAgentCollisionsGPU(const MemoryPointers& globalMemory, MemoryPointers& localMemory, sycl::nd_item<1> item);
 SYCL_EXTERNAL void writeMinimalPath(const MemoryPointers& globalMemory);
+
+void processAgentCollisionsCPUOneThread(const MemoryPointers& globalMemory);
+void processAgentCollisionsCPU(const MemoryPointers& globalMemory, MemoryPointers& localMemory, MyBarrier& b, int agentId);

@@ -8,8 +8,11 @@ class ViewScene : public Scene {
 private:
     Map* map;
     Scene* StartSimulation();
+     char* textBoxBuffer = nullptr; 
+     bool textBoxEditMode;
+
 public:
-    ViewScene(Map* map) : map(map) {}
+    ViewScene(Map* map);
     ~ViewScene();
     Scene* DrawControl() override;
 };

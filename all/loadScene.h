@@ -7,10 +7,12 @@ class LoadScene : public Scene {
 private:
     std::vector<std::string> savedMaps;
     int selectedIndex;
-    Map* loadedMap;
-
-    void loadSavedMaps();
-
+    Vector2 scrollOffset = { 0, 0 };
+    Rectangle scrollPanelBounds;
+    Rectangle contentBounds;
+    Rectangle backButtonBounds;
+    Rectangle loadButtonBounds;
+    Rectangle view;
 public:
 
     LoadScene();
