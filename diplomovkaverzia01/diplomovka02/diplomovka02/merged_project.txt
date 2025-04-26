@@ -1,0 +1,3857 @@
+
+// ===== .\a_star_algo.cpp =====
+#include "a_star_algo.h"
+
+#include <vector>
+#include <queue>
+#include <unordered_map>
+#include <unordered_set>
+#include <memory>
+#include <algorithm>
+
+#include "fill_init_convert.h"
+#include "compute.h"
+
+void runAStar(MemoryPointers& localMemory, positionHeap& myHeap, Position start, Position goal) {
+	const int width = localMemory.width;
+	const int height = localMemory.height;
+	while (!empty(myHeap)) {
+		Position current = pop(myHeap);
+		if (current.x == goal.x && current.y == goal.y) break;
+		int index = getTrueIndexGrid(width, current.x, current.y);
+
+		if (localMemory.visited[index]) continue;
+		localMemory.visited[index] = true;
+
+		Position neighbors[4] = {
+			{current.x + 1, current.y}, {current.x - 1, current.y},
+			{current.x, current.y + 1}, {current.x, current.y - 1} };
+
+		for (int j = 0; j < 4; j++) {
+			Position next = neighbors[j];
+			int nextIndex = getTrueIndexGrid(width, next.x, next.y);
+			if (next.x >= 0 && next.x < width && next.y >= 0 && next.y < height &&
+				localMemory.grid[nextIndex] != OBSTACLE_SYMBOL && 
+				!localMemory.visited[nextIndex]) {
+
+				int newG = localMemory.gCost[index] + 1;
+				if (newG < localMemory.gCost[nextIndex]) {
+					localMemory.gCost[nextIndex] = newG;
+					localMemory.fCost[nextIndex] =
+						newG + myAbs(goal.x - next.x) + myAbs(goal.y - next.y);
+					localMemory.cameFrom[nextIndex] = current;
+					push(myHeap, next, localMemory.fCost[nextIndex]);
+				}
+			}
+		}
+	}
+}
+
+int reconstructPath(MemoryPointers& localMemory, Position start, Position goal) {
+	const int width = localMemory.width;
+	Position current = goal;
+	int pathLength = 0;
+
+	while ((current.x != start.x || current.y != start.y) && 
+		getTrueIndexGrid(width, current.x, current.y) >= 0 &&
+		getTrueIndexGrid(width, current.x, current.y) < width*localMemory.height) {
+		localMemory.agentPaths[pathLength++] = current;
+		current = localMemory.cameFrom[getTrueIndexGrid(width, current.x, current.y)];
+	}
+	if (getTrueIndexGrid(width, current.x, current.y) < 0){
+		return 0;
+	}
+	localMemory.agentPaths[pathLength++] = start;
+
+	// Reverse path
+	for (int i = 0; i < pathLength / 2; i++) {
+		Position temp = localMemory.agentPaths[i];
+		localMemory.agentPaths[i] = localMemory.agentPaths[pathLength - i - 1];
+		localMemory.agentPaths[pathLength - i - 1] = temp;
+	}
+
+	return pathLength;
+}
+
+void astar_algorithm(int agentId, MemoryPointers& localMemory) {
+	Agent a = localMemory.agents[agentId];
+	Position start = a.position;
+	Position goal = a.goal;
+	positionHeap myHeap{ localMemory.openList, 0 };
+	initializeCostsAndHeap(localMemory, myHeap, start);
+	runAStar(localMemory, myHeap, start, goal);
+}
+
+bool isSamePosition(Position& a, Position& b) {
+	return bool(a.x == b.x && a.y == b.y);
+}
+
+//====================== CPU HIGH LEVEL ===============================
+
+std::vector<Position> ComputeASTAR(Map* m, int agentID, const std::vector<std::vector<Constraint>>& constraints) {
+    MemoryPointers& CPUMemory = m->CPUMemory;
+    Agent& a = CPUMemory.agents[agentID];
+    Position start = a.position, goal = a.goal;
+    int width = CPUMemory.width, height = CPUMemory.height;
+
+    std::priority_queue<std::shared_ptr<Node>, std::vector<std::shared_ptr<Node>>, CompareNodes> openSet;
+    std::unordered_map<Position, std::shared_ptr<Node>> cameFrom;
+    std::unordered_map<Position, int> costSoFar;
+
+    openSet.emplace(std::make_shared<Node>(start, 0, ManhattanHeuristic(start, goal)));
+    costSoFar[start] = 0;
+
+    // R˝chle vyhæad·vanie obmedzenÌ
+    std::unordered_map<Position, std::unordered_set<int>> constraintSet;
+    if (!constraints.empty()) {
+        for (const auto& constraint : constraints[agentID]) {
+            constraintSet[constraint.to].insert(constraint.timeStep);
+        }
+    }
+
+    while (!openSet.empty()) {
+        auto current = openSet.top();
+        openSet.pop();
+
+        if (isSamePosition(current->pos, goal)) {
+            std::vector<Position> path;
+            while (current) {
+                path.push_back(current->pos);
+                current = current->parent;
+            }
+            std::reverse(path.begin(), path.end());
+            return path;
+        }
+
+        std::vector<Position> neighbors = {
+            {current->pos.x + 1, current->pos.y},
+            {current->pos.x - 1, current->pos.y},
+            {current->pos.x, current->pos.y + 1},
+            {current->pos.x, current->pos.y - 1}
+        };
+
+        for (auto& next : neighbors) {
+            if (next.x < 0 || next.y < 0 || next.x >= width || next.y >= height) continue;
+            if (CPUMemory.grid[getTrueIndexGrid(width, next.x, next.y)] == OBSTACLE_SYMBOL) continue;
+
+            int newCost = costSoFar[current->pos] + 1;
+            int timeStep = newCost; // PribliûnÈ Ëasovanie krokov
+
+            // Kontrola Ëasov˝ch obmedzenÌ
+            if (constraintSet.count(next) && constraintSet[next].count(timeStep)) continue;
+
+            if (!costSoFar.count(next) || newCost < costSoFar[next]) {
+                costSoFar[next] = newCost;
+                auto newNode = std::make_shared<Node>(next, newCost, ManhattanHeuristic(next, goal), current);
+                cameFrom[next] = newNode;
+                openSet.push(newNode);
+            }
+        }
+    }
+    return {}; // Nebola n·jden· ûiadna cesta
+}
+
+
+
+// ===== .\a_star_algo.h =====
+#pragma once
+#include "device_type_algoritmus.h"
+#include "map.h"
+#include "sycl/sycl.hpp"
+
+SYCL_EXTERNAL void astar_algorithm(int agentId, MemoryPointers& localMemory);
+SYCL_EXTERNAL void fillLocalMemory(const MemoryPointers& memory, int agentId, const MemoryPointers& local);
+    
+std::vector<Position> ComputeASTAR(Map* m, int agentID, const std::vector<std::vector<Constraint>>& constraints);
+
+
+
+
+// ===== .\CBS.cpp =====
+#include <vector>
+#include <thread>
+#include <future>
+#include <mutex>
+#include <queue>
+#include <atomic>
+#include <condition_variable>
+#include <unordered_set>
+#include "fill_init_convert.h"
+#include "a_star_algo.h"
+#include "compute.h"
+
+void reDetectConflicts(CTNode& node, const std::vector<int>& changedAgentIndices) {
+	for (int i : changedAgentIndices) {
+		for (size_t j = 0; j < node.paths.size(); j++) {
+			if (i == j) continue;
+			size_t minS = std::min(node.paths[i].size(), node.paths[j].size());
+			for (size_t k = 0; k < minS; k++) {
+				PositionOwner tupple = PositionOwner(node.paths[i][k], node.paths[j][k], i, j);
+				if (isSamePosition(node.paths[i][k], node.paths[j][k])) {
+					node.conflicts.insert(tupple);
+					break;
+				}
+				if (k > 0
+					&& isSamePosition(node.paths[i][k], node.paths[j][k - 1])
+					&& isSamePosition(node.paths[j][k], node.paths[i][k - 1])) {
+					node.conflicts.insert(tupple);
+					break;
+				}
+				node.conflicts.erase(tupple);
+			}
+		}
+	}
+}
+
+void detectConflicts(CTNode& node) {
+	node.conflicts.clear();
+	for (size_t i = 0; i < node.paths.size(); i++) {
+		for (size_t j = i + 1; j < node.paths.size(); j++) {
+			size_t minS = std::min(node.paths[i].size(), node.paths[j].size());
+			for (size_t k = 0; k < minS; k++) {
+				if (isSamePosition(node.paths[i][k], node.paths[j][k])) {
+					node.conflicts.insert(PositionOwner(node.paths[i][k], node.paths[j][k], i, j));
+					break;
+				}
+				if (k > 0 && isSamePosition(node.paths[i][k], node.paths[j][k - 1]) && isSamePosition(node.paths[j][k], node.paths[i][k - 1])) {
+					node.conflicts.insert(PositionOwner(node.paths[i][k], node.paths[j][k], i, j));
+					break;
+				}
+			}
+		}
+	}
+}
+
+std::vector<std::vector<Position>> resolveConflictsCBS(Map* m, CTNode& root) {
+	std::priority_queue<CTNode, std::vector<CTNode>, std::greater<CTNode>> openSet;
+	detectConflicts(root);
+	openSet.push(root);
+	while (!openSet.empty()) {
+		CTNode current;
+		current = openSet.top();
+		openSet.pop();
+		if (current.conflicts.empty()) {
+			return current.paths;
+		}
+		for (auto& conflictOwner : current.conflicts) {
+			Position conflictPos1 = conflictOwner.pos1, conflictPos2 = conflictOwner.pos2;
+			int owner1 = conflictOwner.agentID1, owner2 = conflictOwner.agentID2;
+			CTNode newNode1 = current;
+			CTNode newNode2 = current;
+			Constraint c1, c2;
+			c1.to = conflictPos1;
+			c2.to = conflictPos2;
+			newNode1.constraints[owner1].push_back(c1);
+			newNode2.constraints[owner2].push_back(c2);
+			newNode1.conflicts.erase(conflictOwner);
+			newNode2.conflicts.erase(conflictOwner);
+			newNode1.paths[owner1] = ComputeASTAR(m, owner1, newNode1.constraints);
+			newNode2.paths[owner2] = ComputeASTAR(m, owner2, newNode2.constraints);
+			reDetectConflicts(newNode1, { owner1 });
+			reDetectConflicts(newNode2, { owner2 });
+			openSet.push(newNode1);
+			openSet.push(newNode2);
+		}
+	}
+	return {};
+}
+
+
+// ===== .\changeScene.cpp =====
+#include "changeScene.h"
+#include "raygui.h"
+#include "mainScene.h"
+#include "viewScene.h"
+#include "fill_init_convert.h"
+#include <algorithm>
+#include "map.h"
+
+Scene* ChangeScene::DrawControl() {
+    map->draw(GetWindowWidth(), GetWindowHeight() - 50);
+    HandleGridClick();
+    return DrawControlButtons();
+}
+
+ChangeScene::~ChangeScene() {
+    if (map != nullptr) {
+        delete map;
+    }
+}
+
+void ChangeScene::HandleGridClick() {
+    if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+        Vector2 mousePos = GetMousePosition();
+        int cellWidth = GetWindowWidth() / map->CPUMemory.width;
+        int cellHeight = (GetWindowHeight() - 50) / map->CPUMemory.height;
+        int x = static_cast<int>(mousePos.x / cellWidth);
+        int y = static_cast<int>(mousePos.y / cellHeight);
+        if (x >= 0 && x < map->CPUMemory.width && y >= 0 && y < map->CPUMemory.height) {
+            if (map->selected.x != -1) {
+                SwapGridCells(x, y);
+            }
+            else {
+                map->selected = Position{ x, y };
+            }
+        }
+    }
+}
+
+void ChangeScene::SwapGridCells(int x, int y) {
+    int prevX = map->selected.x;
+    int prevY = map->selected.y;
+    Position prev = map->selected, current = Position{ x,y };
+    map->selected = Position{ -1,-1 };
+    controlSwapAgent(current, prev);
+    if (map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] == FREEFIELD_SYMBOL &&
+        map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, prevX, prevY)] == FREEFIELD_SYMBOL) {
+        return;
+    }
+    controlSwapLoader(current, prev);
+    controlSwapUnloader(current, prev);
+    std::swap(map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)],
+        map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, prevX, prevY)]);
+}
+
+void ChangeScene::controlSwapAgent(Position current, Position prev) {
+    int x = current.x, y = current.y, prevX = prev.x, prevY = prev.y;
+    Agent* agents = map->CPUMemory.agents;
+    for (int i = 0; i < map->CPUMemory.agentsCount; i++) {
+        Agent& a = agents[i];
+        int agentX = a.position.x, agentY = a.position.y;
+        if (x == agentX && y == agentY) {
+            a.position = Position{ x,y };
+            AgentFrame& f = map->agentFrames[i];
+            f.x = static_cast<float>(a.position.x);
+            f.y = static_cast<float>(a.position.y);
+            continue;
+        }
+        if (prevX == agentX && prevY == agentY) {
+            a.position = Position{x,y};
+            AgentFrame& f = map->agentFrames[i];
+            f.x = static_cast<float>(a.position.x);
+            f.y = static_cast<float>(a.position.y);
+        }
+    }
+}
+
+void ChangeScene::controlSwapLoader(Position current, Position prev) {
+    int x = current.x, y = current.y, prevX = prev.x, prevY = prev.y;
+    Position* loaders = map->CPUMemory.loaderPositions;
+    for (int i = 0; i < map->CPUMemory.loadersCount; i++) {
+        Position& p = loaders[i];
+        int loaderX = p.x, loaderY = p.y;
+        if (x == loaderX && y == loaderY) {
+            p.x = prevX;
+            p.y = prevY;
+            continue;
+        }
+        if (prevX == loaderX && prevY == loaderY) {
+            p.x = x;
+            p.y = y;
+        }
+    }
+}
+
+void ChangeScene::controlSwapUnloader(Position current, Position prev) {
+    int x = current.x, y = current.y, prevX = prev.x, prevY = prev.y;
+    Position* unloaders = map->CPUMemory.unloaderPositions;
+    for (int i = 0; i < map->CPUMemory.unloadersCount; i++) {
+        Position& p = unloaders[i];
+        int loaderX = p.x, loaderY = p.y;
+        if (x == loaderX && y == loaderY) {
+            p.x = prevX;
+            p.y = prevY;
+            continue;
+        }
+        if (prevX == loaderX && prevY == loaderY) {
+            p.x = x;
+            p.y = y;
+        }
+    }
+}
+
+Scene* ChangeScene::DrawControlButtons() {
+    const int sizeButton = 85, spaceButton = 5;
+    GuiEnable();
+    if (GuiButton(Rectangle{ 330 - (spaceButton + sizeButton + 10)*3, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "New")) {
+        map->reset();
+    }
+
+    if (GuiButton(Rectangle{ 330 - (spaceButton + sizeButton + 10)*2, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Back")) {
+        Scene* mainScene = new MainScene();
+        return mainScene;
+    }
+
+    if (GuiButton(Rectangle{ 330 - (spaceButton + sizeButton + 10), static_cast<float>(GetWindowHeight()) - 40, sizeButton, 30 }, "View")) {
+        Scene* viewScene = new ViewScene(map);
+        map->selected = Position{ -1,-1 };
+        map = nullptr;
+        return viewScene;
+    }
+    Position& selected = map->selected;
+
+    bool buttonsEnabled = (selected.x != -1 && map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, selected.x, selected.y)] == FREEFIELD_SYMBOL) && !map->isAgentIn(selected.x, selected.y, map->CPUMemory.agentsCount);
+
+    if (!buttonsEnabled) {
+        GuiDisable();
+    }
+
+    if (GuiButton(Rectangle{ 330, static_cast<float>(GetWindowHeight()) - 40, sizeButton, 30}, "Add Obstacle")) {
+         AddObjectToMap(OBSTACLE_SYMBOL);
+    }
+
+    if (GuiButton(Rectangle{ 330 + (spaceButton + sizeButton), static_cast<float>(GetWindowHeight()) - 40, sizeButton, 30 }, "Add Loader")) {
+         AddObjectToMap(LOADER_SYMBOL);
+    }
+
+    if (GuiButton(Rectangle{ 330 + 2 * (spaceButton + sizeButton), static_cast<float>(GetWindowHeight()) - 40, sizeButton, 30 }, "Add Unloader")) {
+        AddObjectToMap(UNLOADER_SYMBOL);
+    }
+
+    if (GuiButton(Rectangle{ 330 + 3 * (spaceButton + sizeButton), static_cast<float>(GetWindowHeight()) - 40, sizeButton, 30 }, "Add Agent")) {
+        AddObjectToMap(AGENT_SYMBOL);
+    }
+
+    if (!buttonsEnabled) {
+        GuiEnable();
+    }
+
+    if (buttonsEnabled || selected.x == -1) {
+        GuiDisable();
+    }
+    if (GuiButton(Rectangle{ 330 + 4 * (spaceButton + sizeButton), static_cast<float>(GetWindowHeight()) - 40, sizeButton, 30 }, "Delete Object")) {
+        deleteObjectToMap();
+    }
+
+    GuiEnable();
+    return this;
+}
+
+void ChangeScene::AddObjectToMap(char objectType) {
+    if (map->selected.x == -1) return;
+    int x = map->selected.x;
+    int y = map->selected.y;
+    if (map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] != FREEFIELD_SYMBOL) {
+        return;
+    }
+    if (map->isAgentIn(x, y, map->CPUMemory.agentsCount)) {
+        return;
+    }
+    switch (objectType) {
+    case AGENT_SYMBOL:
+        map->AddAgent(x, y);
+        break;
+    case OBSTACLE_SYMBOL:
+        map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] = OBSTACLE_SYMBOL;
+        map->obstacleCount++;
+        break;
+    case LOADER_SYMBOL:
+        map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] = LOADER_SYMBOL;
+        map->AddLoader(x, y);
+        break;
+    case UNLOADER_SYMBOL:
+        map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] = UNLOADER_SYMBOL;
+        map->AddUnloader(x, y);
+        break;
+    default:
+        break;
+    }
+    map->selected = Position{ -1,-1 };
+}
+
+void ChangeScene::deleteObjectToMap() {
+    if (map->selected.x == -1) return;
+    int x = map->selected.x;
+    int y = map->selected.y;
+    map->selected = {-1,-1};
+    if (map->isAgentIn(x, y, map->CPUMemory.agentsCount)) {
+        map->RemoveAgent(x, y);
+        return;
+    }
+
+    if (map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] == OBSTACLE_SYMBOL) {
+        map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] = FREEFIELD_SYMBOL;
+        map->obstacleCount--;
+        return;
+    }
+
+    if (map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] == LOADER_SYMBOL) {
+        map->RemoveLoader(x, y);
+        return;
+    }
+
+    if (map->CPUMemory.grid[getTrueIndexGrid(map->CPUMemory.width, x, y)] == UNLOADER_SYMBOL) {
+        map->RemoveUnloader(x, y);
+        return;
+    }
+}
+
+
+// ===== .\changeScene.h =====
+#pragma once
+
+#include "scene.h"
+#include "map.h"
+
+class ChangeScene : public Scene{
+	Map *map = nullptr;
+    void HandleGridClick();
+    void SwapGridCells(int x, int y);
+    void controlSwapAgent(Position current, Position prev);
+    void controlSwapLoader(Position current, Position prev);
+    void controlSwapUnloader(Position current, Position prev);
+    void AddObjectToMap(char objectType);
+    void deleteObjectToMap();
+    Scene* DrawControlButtons();
+public:
+	ChangeScene(Map* map): map(map){}
+
+	Scene* DrawControl() override;
+	~ChangeScene();
+};
+
+
+
+
+// ===== .\compute.h =====
+#pragma once
+#include "map.h"
+#include "device_type_algoritmus.h"
+#include <queue>
+#include <set>
+#include <unordered_map>
+#include <unordered_set>
+#include "sycl/sycl.hpp"
+
+struct PositionOwner {
+    Position pos1, pos2;
+    int agentID1, agentID2;
+    PositionOwner(Position p1, Position p2, int id1, int id2) : pos1(p1), pos2(p2), agentID1(id1), agentID2(id2) {}
+    bool operator==(const PositionOwner& other) const {
+        return pos2.x == other.pos2.x && pos2.y == other.pos2.y
+            && pos1.x == other.pos1.x && pos1.y == other.pos1.y
+            && agentID1 == other.agentID1 && agentID2 == other.agentID2;
+    }
+    bool operator!=(const PositionOwner& other) const {
+        return !(*this == other);
+    }
+};
+
+struct PositionOwnerHash {
+    std::size_t operator()(const PositionOwner& p) const {
+        std::size_t seed = 0;
+        seed ^= std::hash<int>{}(p.agentID1) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<int>{}(p.agentID2) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<int>{}(p.pos1.x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<int>{}(p.pos1.y) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<int>{}(p.pos2.x) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        seed ^= std::hash<int>{}(p.pos2.y) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        return seed;
+    }
+};
+
+struct CTNode {
+    std::vector<std::vector<Position>> paths;
+    std::vector<std::vector<Constraint>> constraints;
+    std::unordered_set<PositionOwner, PositionOwnerHash> conflicts;
+
+    bool operator>(const CTNode& other) const {
+        return (conflicts.size() > other.conflicts.size());
+    }
+};
+
+struct Node {
+    Position pos;
+    int g, h;
+    std::shared_ptr<Node> parent;
+
+    Node(Position pos, int g, int h, std::shared_ptr<Node> parent = nullptr)
+        : pos(pos), g(g), h(h), parent(parent) {
+    }
+
+    int f() const { return g + h; }
+};
+
+// Custom comparator for priority_queue (min-heap)
+struct CompareNodes {
+    bool operator()(const std::shared_ptr<Node>& a, const std::shared_ptr<Node>& b) const {
+        return a->f() > b->f(); // Lower f-value has higher priority
+    }
+};
+SYCL_EXTERNAL bool isSamePosition(Position& a, Position& b);
+
+Info compute_cpu_primitive(Map* m);
+Info computeSYCL(Map* m);
+Info computeHYBRID(Map* m);
+Info compute_cpu_primitive_one_thread(Map* m);
+Info computeCPU(Map* m);
+std::string initializeSYCLMemory(Map* m);
+
+std::vector<std::vector<Position>> resolveConflictsCBS(Map* m, CTNode& root);
+
+void synchronizeGPUFromCPU(Map* m);
+void synchronizeCPUFromGPU(Map* m);
+
+
+
+// ===== .\compute_cpu.cpp =====
+#include "compute.h"
+#include <iostream>
+#include <sstream>
+#include "heap_primitive.h"
+#include "solve_conflicts.h"
+#include <chrono>
+#include <thread>
+#include <vector>
+#include "fill_init_convert.h"
+#include <queue>
+#include <unordered_map>
+#include <tuple>
+#include <limits>
+
+
+void parallelAStarPrimitive(Map* m) {
+	std::vector<std::thread> threads;
+	MemoryPointers& CPUMemory = m->CPUMemory;
+	// pohyb o minim·lnu cestu 
+	for (int i = 0; i < CPUMemory.agentsCount; ++i) {
+		threads.emplace_back([&, i]() {
+			MemoryPointers local;
+			fillLocalMemory(CPUMemory, i, local);
+			moveAgentForIndex(i, local);
+			});
+	}
+	for (auto& t : threads) {
+		t.join();
+	}
+
+	threads.clear();
+	MyBarrier b(CPUMemory.agentsCount);
+
+	// cesty a spracovanie kolÌziÌ v paraleln˝ch vl·knach
+	for (int i = 0; i < CPUMemory.agentsCount; ++i) {
+		threads.emplace_back([&, i]() {
+			MemoryPointers local;
+			fillLocalMemory(CPUMemory, i, local);
+			processAgentCollisionsCPU(CPUMemory, local, b, i);
+			});
+	}
+
+	for (auto& t : threads) {
+		t.join();
+	}
+	writeMinimalPath(CPUMemory);
+}
+
+Info compute_cpu_primitive(Map* m) {
+	auto start_time = std::chrono::high_resolution_clock::now();
+	parallelAStarPrimitive(m);	
+	auto end_time = std::chrono::high_resolution_clock::now();
+	Info result{ 0,0 };
+	result.timeRun = std::chrono::duration<double>(end_time - start_time).count();
+	return result;
+}
+
+Info compute_cpu_primitive_one_thread(Map* m) {
+	auto start_time = std::chrono::high_resolution_clock::now();
+	processAgentCollisionsCPUOneThread(m->CPUMemory);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	Info result{ 0,0 };
+	result.timeRun = std::chrono::duration<double>(end_time - start_time).count();
+	return result;
+}
+
+
+
+
+// ===== .\compute_c_plus.cpp =====
+Ôªø#include <vector>
+#include <queue>
+#include <unordered_set>
+#include <limits>
+#include <chrono>
+#include <algorithm>
+#include "fill_init_convert.h"
+#include "compute.h"
+#include "a_star_algo.h"
+
+
+
+Info computeCPU(Map* m) {
+    auto start_time = std::chrono::high_resolution_clock::now();
+    CTNode root;
+    root.paths.resize(m->CPUMemory.agentsCount);
+    for (int agentID = 0; agentID < m->CPUMemory.agentsCount; agentID++){
+        root.paths[agentID] = ComputeASTAR(m, agentID, {});
+    }
+    std::vector<std::vector<Position>> solution = resolveConflictsCBS(m, root);
+    auto end_time = std::chrono::high_resolution_clock::now();
+    pushVector(solution, m);
+    auto copy_time = std::chrono::high_resolution_clock::now();
+
+    Info result{ 0,0 };
+    result.timeRun = std::chrono::duration<double>(end_time - start_time).count();
+    result.timeSynchronize = std::chrono::duration<double>(copy_time - end_time).count();
+    return result;
+}
+
+
+// ===== .\compute_sycl.cpp =====
+Ôªø#include "compute.h"
+#include <sycl/sycl.hpp>
+#include <iostream>
+#include <sstream>
+#include <chrono>
+#include "heap_primitive.h"
+#include "solve_conflicts.h"
+#include "a_star_algo.h"
+#include  "fill_init_convert.h"
+
+MemoryPointers GPUMemory{};
+sycl::queue& getQueue() {
+	static sycl::queue q{ sycl::default_selector_v };
+	return q;
+}
+
+std::string initializeSYCLMemory(Map* m) {
+	MemoryPointers& CPUMemory = m->CPUMemory;
+	size_t mapSize = CPUMemory.width * CPUMemory.height;
+	size_t stackSize = CPUMemory.agentsCount * mapSize;
+
+	long long totalAlloc = 0;
+	totalAlloc += sizeof(GPUMemory) * 2; // data structuree
+	totalAlloc += sizeof(int); // minSize
+	totalAlloc += mapSize * sizeof(char); // grid
+	totalAlloc += CPUMemory.agentsCount * sizeof(Agent); // agents
+	totalAlloc += CPUMemory.loadersCount * sizeof(Position); // loaderPosition
+	totalAlloc += CPUMemory.unloadersCount * sizeof(Position); // unloaderPosition
+	totalAlloc += stackSize * sizeof(Position); // paths
+	totalAlloc += CPUMemory.agentsCount * sizeof(int); // contraitsSizes
+	totalAlloc += stackSize * sizeof(int); // gCost
+	totalAlloc += stackSize * sizeof(int); // rhs
+	totalAlloc += stackSize * sizeof(int); // fCost
+	totalAlloc += stackSize * sizeof(Position); // cameFrom
+	totalAlloc += stackSize * sizeof(bool); // visited
+	totalAlloc += stackSize * sizeof(HeapPositionNode); // openList
+	totalAlloc += stackSize * sizeof(Constraint) / 4; // constrait
+	totalAlloc += CPUMemory.agentsCount * sizeof(int); // numberConstrait
+	long long totalGlobalMem = 4LL * 1024 * 1024 * 1024; //q->get_device().get_info<sycl::info::device::global_mem_size>(); // 4 GB on cpu too
+	if (totalAlloc >= ((totalGlobalMem * 3) / 4)) {
+		std::stringstream ss;
+		ss << "you have not enough device memory" << totalAlloc << "/" << ((totalGlobalMem * 3) / 4);
+		return ss.str();
+	}
+	try {
+		sycl::queue& q = getQueue();
+		GPUMemory.minSize_numberColision = sycl::malloc_device<int>(1, q);
+		GPUMemory.grid = sycl::malloc_device<char>(mapSize, q);
+		GPUMemory.agents = sycl::malloc_device<Agent>(CPUMemory.agentsCount, q);
+		GPUMemory.loaderPositions = sycl::malloc_device<Position>(CPUMemory.loadersCount, q);
+		GPUMemory.unloaderPositions = sycl::malloc_device<Position>(CPUMemory.unloadersCount, q);
+		GPUMemory.agentPaths = sycl::malloc_device<Position>(stackSize, q);
+		GPUMemory.gCost = sycl::malloc_device<int>(stackSize, q);
+		GPUMemory.fCost = sycl::malloc_device<int>(stackSize, q);
+		GPUMemory.cameFrom = sycl::malloc_device<Position>(stackSize, q);
+		GPUMemory.visited = sycl::malloc_device<bool>(stackSize, q);
+		GPUMemory.openList = sycl::malloc_device<HeapPositionNode>(stackSize, q);
+		GPUMemory.constraits = sycl::malloc_device<Constraint>(stackSize / 4, q);
+		GPUMemory.numberConstraits = sycl::malloc_device<int>(CPUMemory.agentsCount, q);
+		sycl::event e1 = q.memcpy(GPUMemory.grid, CPUMemory.grid, mapSize * sizeof(char));
+		sycl::event e2 = q.memcpy(GPUMemory.loaderPositions, CPUMemory.loaderPositions, CPUMemory.loadersCount * sizeof(Position));
+		sycl::event e3 = q.memcpy(GPUMemory.unloaderPositions, CPUMemory.unloaderPositions, CPUMemory.unloadersCount * sizeof(Position));
+		GPUMemory.width = CPUMemory.width;
+		GPUMemory.height = CPUMemory.height;
+		GPUMemory.loadersCount = CPUMemory.loadersCount;
+		GPUMemory.unloadersCount = CPUMemory.unloadersCount;
+		GPUMemory.agentsCount = CPUMemory.agentsCount;
+		sycl::event::wait_and_throw({ e1, e2, e3 });
+	}
+	catch (sycl::exception& e) {
+		std::stringstream ss;
+		ss << e.what();
+		return ss.str();
+	}
+	return "";
+}
+
+void synchronizeCPUFromGPU(Map* m) {
+	MemoryPointers& CPUMemory = m->CPUMemory;
+	sycl::queue& q = getQueue();
+	sycl::event e1 = q.memcpy(CPUMemory.agents, GPUMemory.agents, CPUMemory.agentsCount * sizeof(Agent));
+	sycl::event e3 = q.memcpy(CPUMemory.agentPaths, GPUMemory.agentPaths, CPUMemory.agentsCount * CPUMemory.width * CPUMemory.height * sizeof(Position));
+	sycl::event e4 = q.memcpy(CPUMemory.minSize_numberColision, GPUMemory.minSize_numberColision, sizeof(int));
+	sycl::event::wait_and_throw({ e1, e3, e4 });
+}
+
+void synchronizeGPUFromCPU(Map* m) {
+	MemoryPointers& CPUMemory = m->CPUMemory;
+	sycl::queue& q = getQueue();
+	sycl::event e1 = q.memcpy(GPUMemory.agents, CPUMemory.agents, CPUMemory.agentsCount * sizeof(Agent));
+	sycl::event e3 = q.memcpy(GPUMemory.agentPaths, CPUMemory.agentPaths, CPUMemory.agentsCount * CPUMemory.width * CPUMemory.height * sizeof(Position));
+	sycl::event e4 = q.memcpy(GPUMemory.minSize_numberColision, CPUMemory.minSize_numberColision, sizeof(int));
+	sycl::event::wait_and_throw({ e1, e3, e4 });
+}
+
+inline void freePtr(void** ptr) {
+	if (ptr != nullptr && *ptr != nullptr) {
+		sycl::free(*ptr, getQueue());
+		*ptr = nullptr;
+	}
+}
+
+void deleteGPUMem() {
+	sycl::queue& q = getQueue();
+	q.wait();
+	freePtr((void**)(&(GPUMemory.minSize_numberColision)));
+	freePtr((void**)(&(GPUMemory.unloaderPositions)));
+	freePtr((void**)(&(GPUMemory.loaderPositions)));
+	freePtr((void**)(&(GPUMemory.grid)));
+	freePtr((void**)(&(GPUMemory.agents)));
+
+	freePtr((void**)(&(GPUMemory.visited)));
+	freePtr((void**)(&(GPUMemory.cameFrom)));
+	freePtr((void**)(&(GPUMemory.fCost)));
+	freePtr((void**)(&(GPUMemory.gCost)));
+	freePtr((void**)(&(GPUMemory.openList)));
+	freePtr((void**)(&(GPUMemory.agentPaths)));
+	freePtr((void**)(&(GPUMemory.constraits)));
+	freePtr((void**)(&(GPUMemory.numberConstraits)));
+	q.wait();
+}
+
+void SYCL_AStar(Map* m) {
+	sycl::queue& q = getQueue();
+	int workSize = q.get_device().get_info<sycl::info::device::max_work_group_size>();
+	// pohyb o minim√°lnu cestu 
+	auto moveTO = q.submit([&](sycl::handler& h) {
+		MemoryPointers globalMemory = GPUMemory;
+		h.parallel_for(sycl::range<1>(std::min(workSize, GPUMemory.agentsCount)), [=](sycl::id<1> idx) {
+			const int id = idx[0];
+			MemoryPointers localMemory;
+			fillLocalMemory(globalMemory, id, localMemory);
+			moveAgentForIndex(id, localMemory);
+			});
+		});
+	// cesty a kol√≠zie
+	auto collisionEvent = q.submit([&](sycl::handler& h) {
+		h.depends_on(moveTO);
+		MemoryPointers globalMemory = GPUMemory;
+		sycl::nd_range<1> ndRange(sycl::range<1>(std::min(workSize, GPUMemory.agentsCount)), sycl::range<1>(std::min(workSize, GPUMemory.agentsCount)));
+		h.parallel_for(ndRange, [=](sycl::nd_item<1> item) {
+			const int id = item.get_global_id(0);
+			MemoryPointers localMemory;
+			fillLocalMemory(globalMemory, id, localMemory);
+			astar_algorithm(id, localMemory);
+			processAgentCollisionsGPU(globalMemory, localMemory, item);
+			});
+		});
+
+	sycl::event minEvent = q.submit([&](sycl::handler& h) {
+		h.depends_on(collisionEvent);
+		MemoryPointers globalMemory = GPUMemory;
+		h.single_task([=]() {
+			writeMinimalPath(globalMemory);
+			});
+		});
+	minEvent.wait_and_throw();
+}
+
+Info computeHYBRID(Map* m) {
+	auto start_time = std::chrono::high_resolution_clock::now();
+	sycl::queue& q = getQueue();
+	int workSize = q.get_device().get_info<sycl::info::device::max_work_group_size>();
+	// pohyb o minim√°lnu cestu 
+	auto moveTO = q.submit([&](sycl::handler& h) {
+		MemoryPointers globalMemory = GPUMemory;
+		h.parallel_for(sycl::range<1>(std::min(workSize, GPUMemory.agentsCount)), [=](sycl::id<1> idx) {
+			const int id = idx[0];
+			MemoryPointers localMemory;
+			fillLocalMemory(globalMemory, id, localMemory);
+			moveAgentForIndex(id, localMemory);
+			});
+		});
+	// cesty
+	auto foundPathsAgent = q.submit([&](sycl::handler& h) {
+		h.depends_on(moveTO);
+		MemoryPointers globalMemory = GPUMemory;
+		h.parallel_for(sycl::range<1>(std::min(workSize, GPUMemory.agentsCount)), [=](sycl::id<1> idx) {
+			const int id = idx[0];
+			MemoryPointers localMemory;
+			fillLocalMemory(globalMemory, id, localMemory);
+			astar_algorithm(id, localMemory);
+			localMemory.agents[id].sizePath = reconstructPath(id, localMemory);
+			});
+		});
+	// kol√≠zie
+	synchronizeCPUFromGPU(m);
+	CTNode root;
+	root.paths.resize(GPUMemory.agentsCount);
+	root.constraints.resize(GPUMemory.agentsCount);
+	root.paths = getVector(m);
+	auto solution = resolveConflictsCBS(m, root);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	pushVector(solution, m);
+	auto copy_time = std::chrono::high_resolution_clock::now();
+	Info result{ 0,0 };
+	result.timeRun = std::chrono::duration<double>(end_time - start_time).count();
+	result.timeSynchronize = std::chrono::duration<double>(copy_time - end_time).count();
+	return result;
+}
+
+Info computeSYCL(Map* m) {
+	auto start_time = std::chrono::high_resolution_clock::now();
+	SYCL_AStar(m);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	Info result{ 0,0 };
+	result.timeRun = std::chrono::duration<double>(end_time - start_time).count();
+	return result;
+}
+
+
+// ===== .\device_type_algoritmus.cpp =====
+#include <chrono>
+#include "device_type_algoritmus.h"
+#include "compute.h"
+
+
+namespace internal {
+	static int countStepProcessor = 0, countStepGraphicCard = 0;
+}
+
+inline Info addInfo(Info toAdd, Info add) {
+	Info result{ 0,0 };
+	result.timeRun = toAdd.timeRun + add.timeRun;
+	result.timeSynchronize = toAdd.timeSynchronize + add.timeSynchronize;
+	return result;
+}
+
+Info checksynchronizeGPU(Map* m) {
+	Info result{ 0,0 };
+	if (internal::countStepProcessor > internal::countStepGraphicCard) {
+		internal::countStepGraphicCard = internal::countStepProcessor;
+		auto start_time = std::chrono::high_resolution_clock::now();
+		synchronizeGPUFromCPU(m);
+		auto end_time = std::chrono::high_resolution_clock::now();
+		result.timeSynchronize += std::chrono::duration<double>(end_time - start_time).count();
+	}
+	internal::countStepGraphicCard++;
+	return result;
+}
+
+Info checksynchronizeCPU(Map* m) {
+	Info result{ 0,0 };
+	if (internal::countStepProcessor < internal::countStepGraphicCard) {
+		internal::countStepProcessor = internal::countStepGraphicCard;
+		auto start_time = std::chrono::high_resolution_clock::now();
+		synchronizeGPUFromCPU(m);
+		auto end_time = std::chrono::high_resolution_clock::now();
+		result.timeSynchronize += std::chrono::duration<double>(end_time - start_time).count();
+	}
+	internal::countStepProcessor++;
+	return result;
+}
+
+Info runOnGraphicCard(Map* m){
+	Info result = checksynchronizeGPU(m);
+	Info resultCompute = computeSYCL(m);
+	addInfo(result, resultCompute);
+	auto start_time = std::chrono::high_resolution_clock::now();
+	synchronizeCPUFromGPU(m);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	result.timeSynchronize += std::chrono::duration<double>(end_time - start_time).count();
+	internal::countStepProcessor = internal::countStepGraphicCard;
+	return result;
+}
+
+Info runHybrid(Map* m) {
+	Info result = checksynchronizeGPU(m);
+	Info resultCompute = computeHYBRID(m);
+	result = addInfo(result, resultCompute);
+	auto start_time = std::chrono::high_resolution_clock::now();
+	synchronizeCPUFromGPU(m);
+	auto end_time = std::chrono::high_resolution_clock::now();
+	result.timeSynchronize += std::chrono::duration<double>(end_time - start_time).count();
+	internal::countStepProcessor = internal::countStepGraphicCard;
+	return result;
+}
+
+Info runPure(Map* m){
+	Info result = checksynchronizeCPU(m);
+	Info resultCompute = compute_cpu_primitive(m);
+	return addInfo(result, resultCompute);
+}
+
+Info runPureOneThread(Map* m) {
+	Info result = checksynchronizeCPU(m);
+	Info resultCompute = compute_cpu_primitive_one_thread(m);
+	return addInfo(result, resultCompute);
+}
+
+Info runHigh(Map *m){
+	Info result = checksynchronizeCPU(m);
+	Info resultCompute = computeCPU(m);
+	return addInfo(result, resultCompute);
+}
+
+Info letCompute(ComputeType device, Map* m) {
+	switch (device)	{
+	case ComputeType::pureGraphicCard:
+		return runOnGraphicCard(m);
+	case ComputeType::hybridGPUCPU:
+		return runHybrid(m);
+	case ComputeType::pureProcesor:
+		return runPure(m);
+	case ComputeType::pureProcesorOneThread:
+		return runPureOneThread(m);
+	case ComputeType::highProcesor:
+		return runHigh(m);
+	default:
+		break;
+	}
+	return runHigh(m);
+}
+
+
+
+// ===== .\device_type_algoritmus.h =====
+#pragma once
+#include "map.h"
+
+enum class ComputeType {
+    pureGraphicCard,
+    hybridGPUCPU,
+    pureProcesor,
+    pureProcesorOneThread,
+    highProcesor
+};
+
+struct Info{
+    int timeRun, timeSynchronize;
+    std::string error = "";
+};
+
+Info letCompute(ComputeType device, Map* m);
+
+
+
+// ===== .\diplomovka.cpp =====
+// struct
+/*
+#define AGENT_UNLOADER 1
+#define AGENT_LOADER 2
+
+#define LOADER_SYMBOL 'I'
+#define UNLOADER_SYMBOL 'O'
+#define OBSTACLE_SYMBOL '#'
+#define FREEFIELD_SYMBOL '.'
+
+// nno map symbol
+#define AGENT_SYMBOL 'A'
+
+struct Position {
+    int x, y;
+};
+
+struct Agent {
+    int x = 0, y = 0, sizePath = 0;
+    int unloaderCurrent;
+    int loaderCurrent;
+    unsigned char direction;
+};
+
+struct Constrait {
+    int index, x, y;
+};
+
+struct MemoryPointers{
+    int width, height, loaderCount, unloaderCount, agentCount;
+    char* grid = nullptr;
+    Position* loaderPosition = nullptr;
+    Position* unloaderPosition = nullptr;
+    Agent* agents = nullptr;
+
+    int* minSize = nullptr;
+    Position* pathsAgent = nullptr;
+
+    int* gCost = nullptr;
+    int* fCost = nullptr;
+    Position* cameFrom = nullptr;
+    bool* visited = nullptr;
+
+    Position* openList = nullptr;
+    Constrait* constrait = nullptr;
+    int* numberConstrait = nullptr;
+};
+
+struct MyHeap {
+    Position* heap;
+    int size;
+};
+// helper function
+
+inline void push(MyHeap& myHeap, Position p, int* gCost, int width) {
+    myHeap.heap[myHeap.size] = p;
+    myHeap.size++;
+    int i = myHeap.size - 1;
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (gCost[myHeap.heap[parent].y * width + myHeap.heap[parent].x] <=
+            gCost[myHeap.heap[i].y * width + myHeap.heap[i].x]) {
+            break;
+        }
+
+        Position temp = myHeap.heap[i];
+        myHeap.heap[i] = myHeap.heap[parent];
+        myHeap.heap[parent] = temp;
+        i = parent;
+    }
+}
+
+inline Position pop(MyHeap& myHeap, int* gCost, int width) {
+    if (myHeap.size == 0) {
+        return { -1, -1 };
+    }
+    Position root = myHeap.heap[0];
+    --(myHeap.size);
+    myHeap.heap[0] = myHeap.heap[myHeap.size];
+
+    int i = 0;
+    while (2 * i + 1 < myHeap.size) {
+        int left = 2 * i + 1, right = 2 * i + 2;
+        int smallest = left;
+
+        if (right < myHeap.size &&
+            gCost[myHeap.heap[right].y * width + myHeap.heap[right].x] <
+            gCost[myHeap.heap[left].y * width + myHeap.heap[left].x]) {
+            smallest = right;
+        }
+
+        if (gCost[myHeap.heap[i].y * width + myHeap.heap[i].x] <=
+            gCost[myHeap.heap[smallest].y * width + myHeap.heap[smallest].x]) {
+            break;
+        }
+        Position temp = myHeap.heap[i];
+        myHeap.heap[i] = myHeap.heap[smallest];
+        myHeap.heap[smallest] = temp;
+        i = smallest;
+    }
+
+    return root;
+}
+
+inline bool empty(MyHeap& myHeap) {
+    return myHeap.size == 0;
+}
+
+
+inline int getTrueIndexGrid(int width, int x, int y) {
+    return y * width + x;
+}
+
+namespace internal {
+
+    inline void fillLocalMemory(const MemoryPointers& globalMemory, int agentId, MemoryPointers& localMemory) {
+        localMemory.width = globalMemory.width;
+        localMemory.height = globalMemory.height;
+        localMemory.agentCount = globalMemory.agentCount;
+        localMemory.loaderCount = globalMemory.loaderCount;
+        localMemory.unloaderCount = globalMemory.unloaderCount;
+
+        const int mapSize = localMemory.width * localMemory.height;
+        int offset = mapSize * agentId;
+        localMemory.grid = globalMemory.grid;
+        localMemory.loaderPosition = globalMemory.loaderPosition;
+        localMemory.unloaderPosition = globalMemory.unloaderPosition;
+        localMemory.agents = globalMemory.agents;
+        localMemory.minSize = globalMemory.minSize;
+        localMemory.pathsAgent = &(globalMemory.pathsAgent[offset]);
+        localMemory.gCost = &(globalMemory.gCost[offset]);
+        localMemory.fCost = &(globalMemory.fCost[offset]);
+        localMemory.cameFrom = &(globalMemory.cameFrom[offset]);
+        localMemory.visited = &(globalMemory.visited[offset]);
+        localMemory.openList = &(globalMemory.openList[offset]);
+        localMemory.constrait = &(globalMemory.constrait[offset / 4]);
+        localMemory.numberConstrait = globalMemory.numberConstrait;
+    }
+
+    inline void initializeCostsAndHeap(MemoryPointers& localMemory, MyHeap& myHeap, Position start) {
+        const int width = localMemory.width;
+        const int height = localMemory.height;
+        const int mapSize = width * height;
+        const int INF = 1e9;
+        for (int i = 0; i < mapSize; i++) {
+            localMemory.gCost[i] = INF;
+            localMemory.fCost[i] = INF;
+            localMemory.visited[i] = false;
+        }
+        localMemory.gCost[getTrueIndexGrid(width, start.x, start.y)] = 0;
+        localMemory.fCost[getTrueIndexGrid(width, start.x, start.y)] = 0;
+        push(myHeap, start, localMemory.fCost, width);
+    }
+}
+
+inline int myAbs(int input) {
+    if (input < 0) {
+        return -input;
+    }
+    return input;
+}
+// a* algoritmus
+
+namespace internal {
+
+    inline void runAStar(MemoryPointers& localMemory, MyHeap& myHeap, Position start, Position goal) {
+        const int width = localMemory.width;
+        const int height = localMemory.height;
+        while (!empty(myHeap)) {
+            Position current = pop(myHeap, localMemory.fCost, width);
+            if (current.x == goal.x && current.y == goal.y) break;
+
+            if (localMemory.visited[getTrueIndexGrid(width, current.x, current.y)]) continue;
+            localMemory.visited[getTrueIndexGrid(width, current.x, current.y)] = true;
+
+            Position neighbors[4] = {
+                {current.x + 1, current.y}, {current.x - 1, current.y},
+                {current.x, current.y + 1}, {current.x, current.y - 1} };
+
+            for (int j = 0; j < 4; j++) {
+                Position next = neighbors[j];
+                if (next.x >= 0 && next.x < width && next.y >= 0 && next.y < height &&
+                    localMemory.grid[getTrueIndexGrid(width, current.x, current.y)] != OBSTACLE_SYMBOL && !localMemory.visited[getTrueIndexGrid(width, current.x, current.y)]) {
+
+                    int newG = localMemory.gCost[getTrueIndexGrid(width, current.x, current.y)] + 1;
+                    if (newG < localMemory.gCost[getTrueIndexGrid(width, current.x, current.y)]) {
+                        localMemory.gCost[getTrueIndexGrid(width, current.x, current.y)] = newG;
+                        localMemory.fCost[getTrueIndexGrid(width, current.x, current.y)] = newG + myAbs(goal.x - next.x) + myAbs(goal.y - next.y);
+                        localMemory.cameFrom[getTrueIndexGrid(width, current.x, current.y)] = current;
+                        push(myHeap, next, localMemory.fCost, width);
+                    }
+                }
+            }
+        }
+    }
+
+    inline int reconstructPath(MemoryPointers& localMemory, Position start, Position goal) {
+        const int width = localMemory.width;
+        Position current = goal;
+        int pathLength = 0;
+
+        while (current.x != start.x || current.y != start.y) {
+            localMemory.pathsAgent[pathLength++] = current;
+            current = localMemory.cameFrom[getTrueIndexGrid(width, current.x, current.y)];
+        }
+        localMemory.pathsAgent[pathLength++] = start;
+
+        // Reverse path
+        for (int i = 0; i < pathLength / 2; i++) {
+            Position temp = localMemory.pathsAgent[i];
+            localMemory.pathsAgent[i] = localMemory.pathsAgent[pathLength - i - 1];
+            localMemory.pathsAgent[pathLength - i - 1] = temp;
+        }
+
+        return pathLength;
+    }
+
+    inline void computePathForAgent(int agentId, MemoryPointers& localMemory) {
+        if (localMemory.agents[agentId].sizePath != 0) {
+            return;
+        }
+        Agent a = localMemory.agents[agentId];
+        Position start = Position{ a.x, a.y };
+        Position goal;
+        if (a.direction == AGENT_LOADER) {
+            goal = localMemory.loaderPosition[a.loaderCurrent];
+        }
+        else {
+            goal = localMemory.unloaderPosition[a.unloaderCurrent];
+        }
+        MyHeap myHeap{ localMemory.openList, 0 };
+        initializeCostsAndHeap(localMemory, myHeap, start);
+        runAStar(localMemory, myHeap, start, goal);
+        localMemory.agents[agentId].sizePath = reconstructPath(localMemory, start, goal);
+    }
+}
+// solve conflicts
+
+namespace internal {
+
+    inline bool checkCollision(int agentId, int& conflictAgentId, int t, Constrait& conflictFuturePos, const MemoryPointers& globalMemory) {
+
+        const int mapSize = globalMemory.width * globalMemory.height;
+        Position* pathAgent = &globalMemory.pathsAgent[agentId * mapSize];
+        int pathSize = globalMemory.agents[agentId].sizePath;
+        Position nextPos = pathAgent[t + 1];
+
+        for (int agentId2 = 0; agentId2 < globalMemory.agentCount; agentId2++) {
+            if (agentId == agentId2) continue;
+            Position* pathOther = &globalMemory.pathsAgent[agentId2 * mapSize];
+            int otherPathSize = globalMemory.agents[agentId2].sizePath;
+
+            if (t >= otherPathSize - 1) continue;
+
+            Position otherNextPos = pathOther[t + 1];
+
+            if (otherNextPos.x == nextPos.x && otherNextPos.y == nextPos.y) {
+                conflictAgentId = agentId2;
+                conflictFuturePos.index = t;
+                conflictFuturePos.x = otherNextPos.x;
+                conflictFuturePos.y = otherNextPos.y;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    inline bool shouldYield(int agentId, int conflictAgentId, Agent* agents) {
+        Agent& a = agents[agentId], & b = agents[conflictAgentId];
+        if (a.direction != b.direction) {
+            return (a.direction == AGENT_LOADER);
+        }
+        if (a.sizePath != b.sizePath) {
+            return (a.sizePath > b.sizePath);
+        }
+        return (agentId > conflictAgentId);
+    }
+
+    inline int runAStarContrait(Position start, Position goal, MemoryPointers& localMemory) {
+        MyHeap myHeap{ localMemory.openList, 0 };
+        initializeCostsAndHeap(localMemory, myHeap, start);
+
+        while (!empty(myHeap)) {
+            Position current = pop(myHeap, localMemory.fCost, localMemory.width);
+            int trueIndex = getTrueIndexGrid(localMemory.width, current.x, current.y);
+
+            if (current.x == goal.x && current.y == goal.y) break;
+            if (localMemory.visited[trueIndex]) continue;
+
+            localMemory.visited[trueIndex] = true;
+
+            Position neighbors[4] = {
+                {current.x + 1, current.y}, {current.x - 1, current.y},
+                {current.x, current.y + 1}, {current.x, current.y - 1}
+            };
+
+            for (Position next : neighbors) {
+                if (next.x < 0 || next.x >= localMemory.width || next.y < 0 || next.y >= localMemory.height) continue;
+
+                int nextTrueIndex = getTrueIndexGrid(localMemory.width, next.x, next.y);
+                if (localMemory.grid[nextTrueIndex] == OBSTACLE_SYMBOL || localMemory.visited[nextTrueIndex]) continue;
+
+                int newG = localMemory.gCost[trueIndex] + 1;
+                if (newG < localMemory.gCost[nextTrueIndex]) {
+                    localMemory.gCost[nextTrueIndex] = newG;
+                    localMemory.fCost[nextTrueIndex] = newG + abs(goal.x - next.x) + abs(goal.y - next.y);
+                    localMemory.cameFrom[nextTrueIndex] = current;
+                    push(myHeap, next, localMemory.fCost, localMemory.width);
+                }
+            }
+        }
+
+        Position backtrack = goal;
+        int pathSize = 0;
+        while (!(backtrack.x == start.x && backtrack.y == start.y)) {
+            localMemory.pathsAgent[pathSize++] = backtrack;
+            backtrack = localMemory.cameFrom[getTrueIndexGrid(localMemory.width, backtrack.x, backtrack.y)];
+        }
+        return pathSize;
+    }
+
+
+
+    inline int findAlternativePath(Position currentPos, Position targetPos, Position* foundPath, MemoryPointers& localMemory) {
+        const int MAX_PATH = 25;
+        const int SEARCH_SIZE = 5;
+
+        Position queue[MAX_PATH];
+        int queueIndex[MAX_PATH];
+        int queueStart = 0, queueEnd = 0;
+        Position cameFrom[MAX_PATH];
+        bool visited[SEARCH_SIZE][SEARCH_SIZE];
+        for (int i = 0; i < SEARCH_SIZE; i++) {
+            for (int j = 0; j < SEARCH_SIZE; j++) {
+                visited[i][j] = false;
+            }
+        }
+
+        queue[queueEnd] = currentPos;
+        queueIndex[queueEnd] = currentIndex;
+        visited[SEARCH_SIZE / 2][SEARCH_SIZE / 2] = true;
+        queueEnd++;
+
+        Position directions[4] = { {1, 0}, {-1, 0}, {0, 1}, {0, -1} };
+        int foundPathSize = 0;
+
+        while (queueStart < queueEnd && queueEnd < 25) {
+            Position current = queue[queueStart];
+            int currentIdx = queueIndex[queueStart];
+            queueStart++;
+
+            if (current.x == targetPos.x && current.y == targetPos.y) {
+                Position backtrack = current;
+                while (backtrack.x != currentPos.x || backtrack.y != currentPos.y) {
+                    foundPath[foundPathSize++] = backtrack;
+                    for (int i = 0; i < queueEnd; i++) {
+                        if (cameFrom[i].x == backtrack.x && cameFrom[i].y == backtrack.y) {
+                            backtrack = queue[i];
+                            break;
+                        }
+                    }
+                }
+                return foundPathSize;
+            }
+
+            for (int d = 0; d < 4; d++) {
+                Position next = { current.x + directions[d].x, current.y + directions[d].y };
+                int nextIndex = currentIdx + 1;
+
+                if (next.x < 0 || next.x >= localMemory.width || next.y < 0 || next.y >= localMemory.height) continue;
+
+                int localX = next.x - (currentPos.x - SEARCH_SIZE / 2);
+                int localY = next.y - (currentPos.y - SEARCH_SIZE / 2);
+
+                if (localX < 0 || localX >= SEARCH_SIZE || localY < 0 || localY >= SEARCH_SIZE) continue;
+                if (visited[localY][localX]) continue;
+
+                bool isBlocked = false;
+                for (int c = 0; c < numConstraints; c++) {
+                    if (localMemory.constrait[c].x == next.x && localMemory.constrait[c].y == next.y && localMemory.constrait[c].index == nextIndex) {
+                        isBlocked = true;
+                        break;
+                    }
+                }
+                if (isBlocked) continue;
+
+                if (localMemory.grid[getTrueIndexGrid(localMemory.width, next.x, next.y)] == OBSTACLE_SYMBOL) continue;
+
+                queue[queueEnd] = next;
+                queueIndex[queueEnd] = nextIndex;
+                cameFrom[queueEnd] = current;
+                visited[localY][localX] = true;
+                queueEnd++;
+            }
+        }
+        return -1;
+    }
+
+    inline void applyPathShift(Position* paths, int agentSizePath, int t, Position* foundPath, int foundPathSize) {
+        for (int moveIdx = agentSizePath - 1; moveIdx > t; moveIdx--) {
+            paths[moveIdx + foundPathSize] = paths[moveIdx];
+        }
+        for (int i = 0; i < foundPathSize; i++) {
+            paths[t + 1 + i] = foundPath[foundPathSize - 1 - i];
+        }
+    }
+
+    bool handleCollision(int agentId, int conflictAgentId, int timeStep, Position& currentPos,
+        Position& nextGoal, MemoryPointers& localMemory) {
+
+        if (!shouldYield(agentId, conflictAgentId, localMemory.agents)) {
+            return false;
+        }
+        int indexTopConstrait = localMemory.numberConstrait[agentId];
+        localMemory.constrait[indexTopConstrait] = { nextGoal.x, nextGoal.y, timeStep };
+        localMemory.numberConstrait[agentId] += 1;
+
+        Position foundPath[25];
+        int foundPathSize = findAlternativePath(currentPos, nextGoal, foundPath, timeStep, localMemory);
+
+        if (foundPathSize > 0) {
+            applyPathShift(localMemory.pathsAgent, localMemory.agents[agentId].sizePath, timeStep, foundPath, foundPathSize);
+            localMemory.agents[agentId].sizePath += foundPathSize;
+            return true;
+        }
+        else {
+            Agent& a = localMemory.agents[agentId];
+            int pathSize =
+                foundPath = runAStarContrait({ a.x, a.y }, );
+        }
+
+        return false;
+    }
+
+    void processAgentCollisionsGPU(sycl::nd_item<1> item, MemoryPointers& localMemory, const MemoryPointers& globalMemory) {
+        int agentId = item.get_local_id(0);  // Ka≈æd√Ω agent dostane svoje ID v r√°mci work-groupy
+        const int agentCount = localMemory.agentCount;
+
+        MyHeap myHeap{ localMemory.openList, 0 };
+
+        for (int t = 0; t < localMemory.agents[agentId].sizePath - 1; t++) {
+            item.barrier();
+            int conflictAgentId = -1;
+            Constrait conflictFuturePos = { -1, -1, -1 };
+
+            if (!checkCollision(agentId, conflictAgentId, t, conflictFuturePos, globalMemory)) {
+                continue;
+            }
+
+            handleCollision(agentId, conflictAgentId,
+                currentPos, nextPos,
+                t, myHeap, localMemory);
+        }
+        sycl::atomic_ref<int, sycl::memory_order::relaxed, sycl::memory_scope::device,
+            sycl::access::address_space::global_space>  atomicMin(*localMemory.minSize);
+        atomicMin.fetch_min(localMemory.agents[agentId].sizePath);
+    }
+}*/
+
+
+// ===== .\diplomovka02.cpp =====
+//==============================================================
+// Vector Add is the equivalent of a Hello, World! sample for data parallel
+// programs. Building and running the sample verifies that your development
+// environment is setup correctly and demonstrates the use of the core features
+// of SYCL. This sample runs on both CPU and GPU (or FPGA). When run, it
+// computes on both the CPU and offload device, then compares results. If the
+// code executes on both CPU and offload device, the device name and a success
+// message are displayed. And, your development environment is setup correctly!
+//
+// For comprehensive instructions regarding SYCL Programming, go to
+// https://software.intel.com/en-us/oneapi-programming-guide and search based on
+// relevant terms noted in the comments.
+//
+// SYCL material used in the code sample:
+// ‚Ä¢	A one dimensional array of data.
+// ‚Ä¢	A device queue, buffer, accessor, and kernel.
+//==============================================================
+// Copyright ¬© Intel Corporation
+//
+// SPDX-License-Identifier: MIT
+// =============================================================
+/*
+#include <sycl/sycl.hpp>
+#include <vector>
+#include <iostream>
+#include <string>
+#if FPGA_HARDWARE || FPGA_EMULATOR || FPGA_SIMULATOR
+#include <sycl/ext/intel/fpga_extensions.hpp>
+#endif
+
+using namespace sycl;
+
+// num_repetitions: How many times to repeat the kernel invocation
+size_t num_repetitions = 1;
+// Vector type and data size for this example.
+size_t vector_size = 10000;
+typedef std::vector<int> IntVector;
+
+// Create an exception handler for asynchronous SYCL exceptions
+static auto exception_handler = [](sycl::exception_list e_list) {
+    for (std::exception_ptr const &e : e_list) {
+        try {
+            std::rethrow_exception(e);
+        }
+        catch (std::exception const &e) {
+#if _DEBUG
+        std::cout << "Failure" << std::endl;
+#endif
+        std::terminate();
+        }
+    }
+};
+
+//************************************
+// Vector add in SYCL on device: returns sum in 4th parameter "sum_parallel".
+//************************************
+void VectorAdd(queue &q, const IntVector &a_vector, const IntVector &b_vector,
+               IntVector &sum_parallel) {
+    // Create the range object for the vectors managed by the buffer.
+    range<1> num_items{ a_vector.size() };
+
+    // Create buffers that hold the data shared between the host and the devices.
+    // The buffer destructor is responsible to copy the data back to host when it
+    // goes out of scope.
+    buffer a_buf(a_vector);
+    buffer b_buf(b_vector);
+    buffer sum_buf(sum_parallel.data(), num_items);
+
+    for (size_t i = 0; i < num_repetitions; i++) {
+
+        // Submit a command group to the queue by a lambda function that contains the
+        // data access permission and device computation (kernel).
+        q.submit([&](handler &h) {
+            // Create an accessor for each buffer with access permission: read, write or
+            // read/write. The accessor is a mean to access the memory in the buffer.
+            accessor a(a_buf, h, read_only);
+            accessor b(b_buf, h, read_only);
+
+            // The sum_accessor is used to store (with write permission) the sum data.
+            accessor sum(sum_buf, h, write_only, no_init);
+
+            // Use parallel_for to run vector addition in parallel on device. This
+            // executes the kernel.
+            //    1st parameter is the number of work items.
+            //    2nd parameter is the kernel, a lambda that specifies what to do per
+            //    work item. The parameter of the lambda is the work item id.
+            // SYCL supports unnamed lambda kernel by default.
+            h.parallel_for(num_items, [=](auto i) { sum[i] = a[i] + b[i]; });
+            });
+    };
+    // Wait until compute tasks on GPU done
+    q.wait();
+}
+
+//************************************
+// Initialize the vector from 0 to vector_size - 1
+//************************************
+void InitializeVector(IntVector &a) {
+    for (size_t i = 0; i < a.size(); i++) a.at(i) = i;
+}
+
+//************************************
+// Demonstrate vector add both in sequential on CPU and in parallel on device.
+//************************************
+int main(int argc, char* argv[]) {
+    // Change num_repetitions if it was passed as argument
+    if (argc > 2) num_repetitions = std::stoi(argv[2]);
+    // Change vector_size if it was passed as argument
+    if (argc > 1) vector_size = std::stoi(argv[1]);
+    // Create device selector for the device of your interest.
+#if FPGA_EMULATOR
+  // Intel extension: FPGA emulator selector on systems without FPGA card.
+  auto selector = sycl::ext::intel::fpga_emulator_selector_v;
+#elif FPGA_SIMULATOR
+  // Intel extension: FPGA simulator selector on systems without FPGA card.
+  auto selector = sycl::ext::intel::fpga_simulator_selector_v;
+#elif FPGA_HARDWARE
+  // Intel extension: FPGA selector on systems with FPGA card.
+  auto selector = sycl::ext::intel::fpga_selector_v;
+#else
+  // The default device selector will select the most performant device.
+  auto selector = default_selector_v;
+#endif
+
+    // Create vector objects with "vector_size" to store the input and output data.
+    IntVector a, b, sum_sequential, sum_parallel;
+    a.resize(vector_size);
+    b.resize(vector_size);
+    sum_sequential.resize(vector_size);
+    sum_parallel.resize(vector_size);
+
+    // Initialize input vectors with values from 0 to vector_size - 1
+    InitializeVector(a);
+    InitializeVector(b);
+
+    try {
+        queue q(selector, exception_handler);
+
+        // Print out the device information used for the kernel code.
+        std::cout << "Running on device: "
+                  << q.get_device().get_info<info::device::name>() << "\n";
+        std::cout << "Vector size: " << a.size() << "\n";
+
+        // Vector addition in SYCL
+        VectorAdd(q, a, b, sum_parallel);
+    } catch (exception const &e) {
+        std::cout << "An exception is caught for vector add.\n";
+        std::terminate();
+    }
+
+    // Compute the sum of two vectors in sequential for validation.
+    for (size_t i = 0; i < sum_sequential.size(); i++)
+        sum_sequential.at(i) = a.at(i) + b.at(i);
+
+    // Verify that the two vectors are equal.  
+    for (size_t i = 0; i < sum_sequential.size(); i++) {
+        if (sum_parallel.at(i) != sum_sequential.at(i)) {
+            std::cout << "Vector add failed on device.\n";
+            return -1;
+        }
+    }
+
+    int indices[]{ 0, 1, 2, (static_cast<int>(a.size()) - 1) };
+    constexpr size_t indices_size = sizeof(indices) / sizeof(int);
+
+    // Print out the result of vector add.
+    for (int i = 0; i < indices_size; i++) {
+        int j = indices[i];
+        if (i == indices_size - 1) std::cout << "...\n";
+        std::cout << "[" << j << "]: " << a[j] << " + " << b[j] << " = "
+                  << sum_parallel[j] << "\n";
+    }
+
+    a.clear();
+    b.clear();
+    sum_sequential.clear();
+    sum_parallel.clear();
+
+    std::cout << "Vector add successfully completed on device.\n";
+    return 0;
+}
+*/
+
+
+// ===== .\fill_init_convert.cpp =====
+#include "fill_init_convert.h"
+#include "sycl/sycl.hpp"
+
+int getTrueIndexGrid(int width, int x, int y) {
+	return y * width + x;
+}
+
+int myAbs(int input) {
+    int mask = input >> 31;  // VytvorÌ -1 pre z·pornÈ ËÌsla, 0 pre kladnÈ
+    return (input + mask) ^ mask;
+}
+
+int reconstructPath(int agentID, MemoryPointers& localMemory) {
+	const int width = localMemory.width;
+	const int height = localMemory.height;
+	const int mapSize = width * height;
+	int pathLength = 0;
+	Agent& a = localMemory.agents[agentID];
+	Position start = a.position;
+	Position current = a.goal;
+	localMemory.agentPaths[pathLength++] = current;
+	for (int i = 0; i < mapSize; i++) {
+		int currentIndex = getTrueIndexGrid(width, current.x, current.y);
+		if (currentIndex < 0 || currentIndex >= mapSize) {
+			pathLength = 0;
+			break;
+		}
+		Position next = localMemory.cameFrom[currentIndex];
+		if (next.x == -1 || next.y == -1) {
+			pathLength = 0;
+			break;
+		}
+		current = next;
+		localMemory.agentPaths[pathLength++] = current;
+		if (current.x == start.x && current.y == start.y) {
+			break;
+		}
+	}
+	for (int i = 0; i < pathLength / 2; i++) {
+		Position temp = localMemory.agentPaths[i];
+		localMemory.agentPaths[i] = localMemory.agentPaths[pathLength - i - 1];
+		localMemory.agentPaths[pathLength - i - 1] = temp;
+	}
+	return pathLength;
+}
+
+
+void fillLocalMemory(const MemoryPointers& globalMemory, int agentId, MemoryPointers& localMemory) {
+	localMemory.width = globalMemory.width;
+	localMemory.height = globalMemory.height;
+	localMemory.agentsCount = globalMemory.agentsCount;
+	localMemory.loadersCount = globalMemory.loadersCount;
+	localMemory.unloadersCount = globalMemory.unloadersCount;
+
+	const int mapSize = localMemory.width * localMemory.height;
+	int offset = mapSize * agentId;
+	localMemory.grid = globalMemory.grid;
+	localMemory.loaderPositions = globalMemory.loaderPositions;
+	localMemory.unloaderPositions = globalMemory.unloaderPositions;
+	localMemory.agents = globalMemory.agents;
+	localMemory.minSize_numberColision = globalMemory.minSize_numberColision;
+	localMemory.agentPaths = &(globalMemory.agentPaths[offset]);
+	localMemory.gCost = &(globalMemory.gCost[offset]);
+	localMemory.fCost = &(globalMemory.fCost[offset]);
+	localMemory.cameFrom = &(globalMemory.cameFrom[offset]);
+	localMemory.visited = &(globalMemory.visited[offset]);
+	localMemory.openList = &(globalMemory.openList[offset]);
+	localMemory.constraits = &(globalMemory.constraits[offset / 4]);
+	localMemory.numberConstraits = globalMemory.numberConstraits;
+}
+
+void initializeCostsAndHeap(MemoryPointers& localMemory, positionHeap& myHeap, Position start) {
+	const int width = localMemory.width;
+	const int height = localMemory.height;
+	const int mapSize = width * height;
+	for (int i = 0; i < mapSize; i++) {
+		localMemory.visited[i] = false;
+		localMemory.gCost[i] = INF;
+		localMemory.fCost[i] = INF;
+	}
+	int index = getTrueIndexGrid(width, start.x, start.y);
+	localMemory.gCost[index] = 0;
+	localMemory.fCost[index] = 0;
+	push(myHeap, start, localMemory.fCost[index]);
+}
+
+std::vector<std::vector<Position>> getVector(Map* m) {
+	MemoryPointers& CPUMemory = m->CPUMemory;
+	size_t offset = CPUMemory.width * CPUMemory.height;
+	std::vector<std::vector<Position>> result(CPUMemory.agentsCount);
+
+	Position* ptr = CPUMemory.agentPaths;
+	for (int i = 0; i < CPUMemory.agentsCount; ++i) {
+		size_t pathSize = CPUMemory.agents[i].sizePath;
+		result[i].assign(ptr, ptr + pathSize);  // SkopÌrujeme d·ta do vektora
+		ptr += offset;  // Posun na Ôalöieho agenta
+	}
+	return result;
+}
+
+
+void pushVector(const std::vector<std::vector<Position>>& vec2D, Map* m) {
+	MemoryPointers& CPUMemory = m->CPUMemory;
+	size_t offset = CPUMemory.width * CPUMemory.height;
+	Position* ptr = CPUMemory.agentPaths;
+	int minSize = vec2D[0].size();
+	for (int i = 0; i < CPUMemory.agentsCount; ++i) {
+		const std::vector<Position>& row = vec2D[i];
+		std::copy(row.begin(), row.end(), ptr);
+		ptr += offset;
+		int agentSizePath = row.size();
+		CPUMemory.agents[i].sizePath = agentSizePath;
+		if (agentSizePath < minSize) {
+			minSize = agentSizePath;
+		}
+	}
+	*CPUMemory.minSize_numberColision = minSize;
+}
+
+int ManhattanHeuristic(const Position& a, const Position& b) {
+	return myAbs(a.x - b.x) + myAbs(a.y - b.y);
+}
+
+
+// ===== .\fill_init_convert.h =====
+#pragma once
+#include "map.h"
+#include "heap_primitive.h"
+#include "sycl/sycl.hpp"
+
+#define INF 1000000
+
+SYCL_EXTERNAL int getTrueIndexGrid(int width, int x, int y);
+
+SYCL_EXTERNAL int myAbs(int input);
+
+SYCL_EXTERNAL void fillLocalMemory(const MemoryPointers& globalMemory, int agentId, MemoryPointers& localMemory);
+
+SYCL_EXTERNAL void initializeCostsAndHeap(MemoryPointers& localMemory, positionHeap& myHeap, Position start);
+
+SYCL_EXTERNAL int reconstructPath(int agentID, MemoryPointers& localMemory);
+
+SYCL_EXTERNAL void writeMinimalPath(const MemoryPointers& globalMemory);
+
+SYCL_EXTERNAL int ManhattanHeuristic(const Position& a, const Position& b);
+
+SYCL_EXTERNAL void moveAgentForIndex(int id, MemoryPointers& localMemory);
+
+std::vector<std::vector<Position>> getVector(Map* m);
+
+void pushVector(const std::vector<std::vector<Position>>& vec2D, Map* m);
+
+
+
+// ===== .\heap_primitive.cpp =====
+#include "heap_primitive.h"
+
+void push(positionHeap& myHeap, Position p, int priority) {
+    int i = myHeap.size;
+    myHeap.heap[i].pos = p;
+    myHeap.heap[i].priority = priority;
+    myHeap.size++;
+    while (i > 0) {
+        int parent = (i - 1) / 2;
+        if (myHeap.heap[parent].priority <= myHeap.heap[i].priority)
+            break;
+        HeapPositionNode temp = myHeap.heap[i];
+        myHeap.heap[i] = myHeap.heap[parent];
+        myHeap.heap[parent] = temp;
+        i = parent;
+    }
+}
+
+Position pop(positionHeap& myHeap) {
+    if (myHeap.size == 0) {
+        return { -1, -1 };
+    }
+    Position root = myHeap.heap[0].pos;
+    myHeap.size--;
+    myHeap.heap[0] = myHeap.heap[myHeap.size];
+
+    int i = 0;
+    while (2 * i + 1 < myHeap.size) {
+        int left = 2 * i + 1, right = 2 * i + 2;
+        int smallest = left;
+        if (right < myHeap.size && myHeap.heap[right].priority < myHeap.heap[left].priority)
+            smallest = right;
+        if (myHeap.heap[i].priority <= myHeap.heap[smallest].priority)
+            break;
+        HeapPositionNode temp = myHeap.heap[i];
+        myHeap.heap[i] = myHeap.heap[smallest];
+        myHeap.heap[smallest] = temp;
+        i = smallest;
+    }
+    return root;
+}
+
+bool empty(positionHeap& myHeap) {
+    return myHeap.size == 0;
+}
+
+
+
+// ===== .\heap_primitive.h =====
+#pragma once
+#include "map.h"
+#include <sycl/sycl.hpp>
+
+
+SYCL_EXTERNAL void push(positionHeap& myHeap, Position p, int priority);
+SYCL_EXTERNAL Position pop(positionHeap& myHeap);
+SYCL_EXTERNAL bool empty(positionHeap& myHeap);
+
+
+
+// ===== .\infoScene.cpp =====
+#include "infoScene.h"
+#include "simulationScene.h"
+#include "raygui.h"
+
+#include <sstream>
+
+InfoScene::InfoScene(MemSimulation* s0): mem(s0){
+}
+
+Scene* InfoScene::DrawControl(){
+	Map& m = *(mem->map);
+	m.draw2(GetWindowWidth(), GetWindowHeight() - 40, 3);
+	DrawText("Press SPACE to get back to the simulation", 50, GetWindowHeight()/2, 20, RED);
+	std::stringstream ss;
+	ss << "total time: " << mem->i.timeRun + mem->i.timeSynchronize << " ms";
+	DrawText(ss.str().c_str(), 50, GetWindowHeight() / 2 + 30, 20, RED);
+	ss = std::stringstream();
+	ss << "compute time: " << mem->i.timeRun << " ms";
+	DrawText(ss.str().c_str(), 50, GetWindowHeight() / 2 + 50, 20, RED);
+	ss = std::stringstream();
+	ss << "synchronize time: " << mem->i.timeSynchronize << " ms";
+	DrawText(ss.str().c_str(), 50, GetWindowHeight() / 2 + 70, 20, RED);
+
+	if (IsKeyPressed(KEY_SPACE) || IsKeyPressed(KEY_A)){
+		Scene *r = new SimulationScene(mem);
+		mem = nullptr;
+		return r;
+	}
+	return this;
+}
+
+InfoScene::~InfoScene() {
+	if (mem != nullptr) {
+		delete mem;
+	}
+}
+
+
+
+// ===== .\infoScene.h =====
+#pragma once
+#include "scene.h"
+#include "device_type_algoritmus.h"
+#include "memSimulation.h"
+
+
+class InfoScene :  public Scene{
+private:
+    MemSimulation* mem;
+
+public:
+    InfoScene(MemSimulation* s0);
+    Scene* DrawControl() override;
+    ~InfoScene();
+};
+
+
+
+
+// ===== .\loadScene.cpp =====
+#include "loadScene.h"
+#include "mainScene.h"
+#include "map.h"
+#include "raygui.h"
+#include "viewScene.h"
+
+LoadScene::LoadScene(){
+	std::vector<std::string> maps = getSavedFiles("saved_map", ".data");
+	savedMaps.clear();
+	int size = maps.size();
+	savedMaps.reserve(size);
+	for (int i = 0; i < size; i++){
+		std::string& s = maps[i];
+		if (s!= ""){
+			savedMaps.push_back(s);
+		}
+	}
+    scrollPanelBounds = { 0, 0, (float)screenWidth, (float)screenHeight - 50 };
+    contentBounds = { 0, 0, (float)screenWidth - 20, (float)(savedMaps.size() * 30) }; 
+    backButtonBounds = { 10, (float)screenHeight - 40, 100, 30 };
+    loadButtonBounds = { (float)screenWidth - 110, (float)screenHeight - 40, 100, 30 };
+    view = { 0, 0, scrollPanelBounds.width, scrollPanelBounds.height };
+}
+
+Scene* LoadScene::DrawControl() {
+    GuiScrollPanel(scrollPanelBounds, "select", contentBounds, &scrollOffset, &view);
+    BeginScissorMode((int)scrollPanelBounds.x, (int)scrollPanelBounds.y,
+        (int)scrollPanelBounds.width, (int)scrollPanelBounds.height);
+
+    for (size_t i = 0; i < savedMaps.size(); i++) {
+        Rectangle mapNameBounds = {
+            scrollPanelBounds.x + 10,
+            scrollPanelBounds.y + 50 + (float)(i * 30) - scrollOffset.y,
+            scrollPanelBounds.width - 20, 25
+        };
+
+        if (CheckCollisionPointRec(GetMousePosition(), mapNameBounds) && IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            selectedIndex = i;
+        }
+        if (i == selectedIndex) {
+            DrawRectangleRec(mapNameBounds, LIGHTGRAY);
+        }
+        DrawText(savedMaps[i].c_str(), (int)mapNameBounds.x, (int)mapNameBounds.y, 20, DARKGRAY);
+    }
+
+    EndScissorMode();
+    if (GuiButton(backButtonBounds, "Back")) {
+        return new MainScene();
+    }
+    if (GuiButton(loadButtonBounds, "Load")) {
+        if (selectedIndex >= 0 && selectedIndex < savedMaps.size()) {
+            Map* m = new Map();
+            m->load(savedMaps[selectedIndex]);
+            ViewScene *v = new ViewScene(m);
+            v->setWasLoad();
+            return v;
+        }
+    }
+    return this;
+}
+
+
+// ===== .\loadScene.h =====
+#pragma once
+
+#include "scene.h"
+#include "map.h"
+
+class LoadScene : public Scene {
+private:
+    std::vector<std::string> savedMaps;
+    int selectedIndex;
+    Vector2 scrollOffset = { 0, 0 };
+    Rectangle scrollPanelBounds;
+    Rectangle contentBounds;
+    Rectangle backButtonBounds;
+    Rectangle loadButtonBounds;
+    Rectangle view;
+public:
+
+    LoadScene();
+
+    Scene* DrawControl() override;
+
+};
+
+
+// ===== .\main.cpp =====
+#define RAYGUI_IMPLEMENTATION 
+#include "raygui.h"
+
+#include "mainScene.h"
+
+float screenWidth = 800.;
+float screenHeight = 600.;
+int main() {
+    InitWindow(screenWidth, screenHeight, "Map Generator and Simulation");
+    GuiEnable();
+    Scene* currentScene = new MainScene();
+
+    while (!WindowShouldClose()) {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        Scene* nextScene = currentScene->DrawControl();
+        if (nextScene != currentScene) {
+            delete currentScene;
+            currentScene = nextScene;
+        }
+        EndDrawing();
+    }
+
+    delete currentScene;
+    CloseWindow();
+    return 0;
+}
+
+
+
+// ===== .\mainScene.cpp =====
+#include "mainScene.h"
+
+#include "loadScene.h"
+#include "parameterScene.h"
+#include "raylib.h"
+#include "raygui.h"
+
+MainScene::MainScene() = default;
+
+MainScene::Scene* MainScene::DrawControl() {
+    DrawText("Main Menu", 350, 100, 20, DARKGRAY);
+
+    if (GuiButton(Rectangle{ 300, 200, 200, 50 }, "New Map")) {
+        return new ParameterScene();
+
+    }
+
+    if (GuiButton(Rectangle{ 300, 300, 200, 50 }, "Load Map")) {
+        return new LoadScene();
+
+    }
+    return this;
+}
+
+MainScene::~MainScene() = default;
+
+
+
+// ===== .\mainScene.h =====
+#pragma once
+#include "scene.h"
+
+class MainScene : public Scene {
+public:
+    MainScene();
+    Scene* DrawControl() override;
+    ~MainScene();
+};
+
+
+
+
+// ===== .\map.cpp =====
+#include "map.h"
+#include <iostream>
+#include <vector>
+#include <utility>
+#include <random>
+#include <string>
+#include <ctime>
+#include <sstream>
+#include <set>
+#include <map>
+#include <queue>
+#include <algorithm>
+#include <limits>
+#include "raylib.h"
+#include "fill_init_convert.h"
+#include "raygui.h"
+#include <filesystem> 
+
+namespace fs = std::filesystem;
+
+std::vector<std::string> getSavedFiles(const std::string& folder, const std::string& extension) {
+    std::vector<std::string> files;
+    if (!fs::exists(folder) || !fs::is_directory(folder)) {
+        std::cerr << "error: folder \"" << folder << "\" not exit!" << std::endl;
+        return files;
+    }
+    for (const auto& entry : fs::directory_iterator(folder)) {
+        if (entry.is_regular_file() && entry.path().extension() == extension) {
+            files.push_back(entry.path().filename().string());
+        }
+    }
+    return files;
+}
+
+std::string Map::getUniqueFilename(const std::string& base) {
+    std::string filename = base;
+    std::string name = std::string(GetFileNameWithoutExt(filename.c_str()));
+
+    auto saved = getSavedFiles("saved_map", ".data");
+
+    int counter = 0;
+    std::string uniqueFilename;
+    do {
+        uniqueFilename = "saved_map/" + name;
+        if (counter > 0) {
+            uniqueFilename += std::to_string(counter);
+        }
+        uniqueFilename += ".data";
+        counter++;
+    } while (std::find(saved.begin(), saved.end(), uniqueFilename.substr(10)) != saved.end()); // odstr·ni cestu
+
+    return uniqueFilename;
+}
+
+
+void Map::saveGrid(std::stringstream* outputString) {
+    (*outputString) << CPUMemory.width << " " << CPUMemory.height << "\n";
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            if(!((*outputString) << CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)])){
+                throw std::logic_error("Error at save grid char");
+            }
+        }
+        if(!((*outputString) << "\n")) {
+            throw std::logic_error("Error at save grid line");
+        }
+    }
+}
+
+void Map::saveAgents(std::stringstream* outputString) {
+    (*outputString) << CPUMemory.agentsCount << "\n";
+    for (int i = 0; i < CPUMemory.agentsCount; i++) {
+        Agent &agent = CPUMemory.agents[i];
+        Color& c = colorAgents[i];
+        if(!((*outputString) << (int)(agent.position.x) << " "
+            << (int)(agent.position.y) << " " << (int)(agent.loaderCurrent) << " "
+            << (int)(agent.unloaderCurrent) << " " << (int)(agent.direction) << " "
+            << (int)(c.r) << " " << (int)(c.g) << " " << (int)(c.b) << " " << (int)(c.a)
+            << "\n")) {
+            throw std::logic_error("Error at save agent data");
+        }
+        int length = CPUMemory.agents[i].sizePath;
+        if (length < 0){
+            length = 0;
+        }
+        if(!((*outputString) << length << "\n")) {
+            throw std::logic_error("Error at save agent length path");
+        }
+        int offset = CPUMemory.width * CPUMemory.height;
+        Position* path = &CPUMemory.agentPaths[i * offset];
+        for (int j = 0; j < length; j++){
+            Position& p = path[j];
+            if(!((*outputString) << (int)(p.x) << " " << (int)(p.y) << " ")) {
+                throw std::logic_error("Error at save agent path position");
+            }
+        }
+        if(!((*outputString) << "\n")) {
+            throw std::logic_error("Error at save ending agent");
+        }
+    }
+}
+
+void Map::saveDocks(std::stringstream* outputString){
+    if(!((*outputString) << CPUMemory.loadersCount << "\n")) {
+        throw std::logic_error("error at save count of loader");
+    }
+    for (int i = 0; i < CPUMemory.loadersCount; i++) {
+        Position& position = CPUMemory.loaderPositions[i];
+        if(!((*outputString) << (int)(position.x) << " " << (int)(position.y) << " ")) {
+            throw std::logic_error("error at save position of loader");
+        }
+    }
+    if(!((*outputString) << "\n" << CPUMemory.unloadersCount << "\n")) {
+        throw std::logic_error("error at save count of unloader");
+    };
+    for (int i = 0; i < CPUMemory.unloadersCount; i++) {
+        Position& position = CPUMemory.unloaderPositions[i];
+        if(!((*outputString) << (int)(position.x) << " " << (int)(position.y) << " ")) {
+            throw std::logic_error("error at save position of unloader");
+        }
+    }
+    if(!((*outputString) << "\n")) {
+        throw std::logic_error("error at save ending of dock");
+    }
+}
+
+void Map::save(const std::string& baseFilename) {
+    if (!DirectoryExists("saved_map")) {
+        MakeDirectory("saved_map");
+    }
+    std::string uniqueFilename = getUniqueFilename(baseFilename);
+    std::stringstream outputString;
+    saveGrid(&outputString);
+    saveAgents(&outputString);
+    saveDocks(&outputString);
+    std::string protoRes = outputString.str();
+    char* res = const_cast<char*>(protoRes.c_str());
+    if (!SaveFileText(uniqueFilename.c_str(), res)) {
+        throw std::logic_error("Failed to save file: " + uniqueFilename);
+    }
+}
+void Map::loadGrid(std::stringstream* inputString) {
+    if (!(*inputString >> CPUMemory.width >> CPUMemory.height)) {
+        throw std::logic_error("Load grid error reading dimensions");
+    }
+
+    if (CPUMemory.width <= 0 || CPUMemory.height <= 0) {
+        throw std::logic_error("Load grid Invalid dimensions");
+    }
+
+    CPUMemory.grid = new char[CPUMemory.height * CPUMemory.width];
+    if (CPUMemory.grid == nullptr) {
+        throw std::logic_error("Load grid Memory allocation failed");
+    }
+
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            if (!(*inputString >> CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)])) {
+
+                delete[] CPUMemory.grid;
+                CPUMemory.grid = nullptr;
+                CPUMemory.width = 0;
+                CPUMemory.height = 0;
+                throw std::logic_error("Load grid Error reading grid data");
+            }
+            std::cout << CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)];
+        }
+        std::cout << std::endl;
+        inputString->ignore(INF, '\n');
+    }
+}
+
+
+void Map::loadAgents(std::stringstream* inputString) {
+    if (!((*inputString) >> CPUMemory.agentsCount)) {
+        throw std::logic_error("error at load agent");
+    }
+    if (CPUMemory.agents!= nullptr) {
+        delete[] CPUMemory.agents;
+    }
+    CPUMemory.agents = new Agent[CPUMemory.agentsCount];
+    if (agentFrames != nullptr) {
+        delete[] agentFrames;
+    }
+    agentFrames = new AgentFrame[CPUMemory.agentsCount];
+    if (CPUMemory.agentPaths != nullptr)    {
+        delete[] CPUMemory.agentPaths;
+    }
+    CPUMemory.agentPaths = new Position[CPUMemory.agentsCount* CPUMemory.width* CPUMemory.height];
+    if (colorAgents != nullptr) {
+        delete[] colorAgents;
+    }
+    colorAgents = new Color[CPUMemory.agentsCount];
+    for (int i = 0; i < CPUMemory.agentsCount; i++) {
+        Agent& agent = CPUMemory.agents[i];
+        AgentFrame& frame = agentFrames[i];
+        Color& c = colorAgents[i];
+        if (!((*inputString) >> agent.position.x)) {
+            throw std::logic_error("error at load agent");
+        }
+        frame.x = (double) agent.position.x;
+
+        if (!((*inputString) >> agent.position.y)) {
+            throw std::logic_error("error at load agent");
+        }
+        frame.y = (double)agent.position.y;
+
+        if (!((*inputString) >> agent.loaderCurrent)) {
+            throw std::logic_error("error at load agent");
+        }
+
+        if (!((*inputString) >> agent.unloaderCurrent)) {
+            throw std::logic_error("error at load agent");
+        }
+
+        if (!((*inputString) >> agent.direction)) {
+            throw std::logic_error("error at load agent");
+        }
+
+        int r, g, b, a;
+
+        if (!((*inputString) >> r >> g >> b >> a)) {
+            throw std::logic_error("error at load agent");
+        }
+        c.r = (char)r;
+        c.g = (char)g;
+        c.b = (char)b;
+        c.a = (char)a;
+        inputString->ignore(INF, '\n');
+        int length;
+        if (!((*inputString) >> length)){
+            throw std::logic_error("error at load agent length path");
+        }
+        CPUMemory.agents[i].sizePath = length;
+        int offset = CPUMemory.width * CPUMemory.height;
+        Position* path = &CPUMemory.agentPaths[i * offset];
+        for (int j = 0; j < length; j++) {
+            Position& p = path[j];
+            if (!((*inputString) >> p.x >> p.y)) {
+                throw std::logic_error("error at load position on path");
+            }
+        }
+        inputString->ignore(INF, '\n');
+    }
+}
+
+void Map::loadDocks(std::stringstream* inputString) {
+    if (!((*inputString) >> CPUMemory.loadersCount)){
+        throw std::logic_error("error at load count of loaders");
+    }
+    if (CPUMemory.loaderPositions != nullptr) {
+        delete[] CPUMemory.loaderPositions;
+    }
+
+    inputString->ignore(INF, '\n');
+
+    CPUMemory.loaderPositions = new Position[CPUMemory.loadersCount];
+
+    for (int i = 0; i < CPUMemory.loadersCount; i++) {
+        if (!((*inputString) >> CPUMemory.loaderPositions[i].x >> CPUMemory.loaderPositions[i].y)) {
+            throw std::logic_error("error at load position of loaders");
+        }
+    }
+    inputString->ignore(INF, '\n');
+    if (CPUMemory.unloaderPositions != nullptr) {
+        delete[] CPUMemory.unloaderPositions;
+    }
+    if(!((*inputString) >> CPUMemory.unloadersCount)) {
+        throw std::logic_error("error at load count of unloaders");
+    }
+    inputString->ignore(INF, '\n');
+    CPUMemory.unloaderPositions = new Position[CPUMemory.unloadersCount];
+
+    for (int i = 0; i < CPUMemory.unloadersCount; i++) {
+        if(!((*inputString) >> CPUMemory.unloaderPositions[i].x >> CPUMemory.unloaderPositions[i].y)) {
+            throw std::logic_error("error at load position of unloaders");
+        }
+    }
+}
+
+void Map::loadData(const std::string& filename, std::stringstream& inputString) {
+    char* data = LoadFileText(("saved_map/" + filename).data());
+    if (data == nullptr) {
+        std::stringstream errorString;
+        errorString << "Failed to load map at " << filename << std::endl;
+        TraceLog(LOG_ERROR, errorString.str().c_str());
+        throw std::runtime_error(errorString.str().c_str());
+    }
+    inputString = std::stringstream(data);
+}
+
+// load fill Map according filename in saved_map dictionary
+void Map::load(const std::string& filename) {
+    std::stringstream inputString;
+    loadData(filename, inputString);
+    loadGrid(&inputString);
+    loadAgents(&inputString);
+    loadDocks(&inputString);
+    setGoals();
+    initMem();
+}
+
+void Map::setGoals(){
+    for (int i = 0; i < CPUMemory.agentsCount; i++) {
+        Agent& agent = CPUMemory.agents[i];
+        if (agent.direction == AGENT_LOADER) {
+            agent.goal = CPUMemory.loaderPositions[agent.loaderCurrent];
+        }
+        else{
+            agent.goal = CPUMemory.unloaderPositions[agent.unloaderCurrent];
+        }
+    }
+}
+
+Map::Map(int width, int height, int agentCount, int obstacleCount, int loaderCount, int unloaderCount) : obstacleCount(obstacleCount){
+    CPUMemory.agentsCount = agentCount;
+    CPUMemory.width = width;
+    CPUMemory.height = height;
+    CPUMemory.loadersCount = loaderCount;
+    CPUMemory.unloadersCount = unloaderCount;
+    setNullptr();
+	reset();
+}
+Map::Map() {
+    obstacleCount = 0;
+    setNullptr();
+}
+
+void Map::setNullptr(){
+    auto agentCount = CPUMemory.agentsCount;
+    auto width = CPUMemory.width;
+    auto  height = CPUMemory.height;
+    auto loaderCount = CPUMemory.loadersCount;
+    auto unloaderCount = CPUMemory.unloadersCount ;
+    CPUMemory = {
+        0, 0, 0, 0, 0,
+        nullptr, nullptr, nullptr, 
+        nullptr, nullptr, nullptr, 
+        nullptr, nullptr, nullptr, 
+        nullptr,  nullptr, nullptr, 
+        nullptr
+    };
+    CPUMemory.agentsCount = agentCount;
+    CPUMemory.width = width;
+    CPUMemory.height = height;
+    CPUMemory.loadersCount = loaderCount;
+    CPUMemory.unloadersCount = unloaderCount;
+    colorAgents = nullptr;
+}
+
+Map::~Map() {
+    deleteMemory();
+}
+
+
+void Map::deleteMemory() {
+    delete[] CPUMemory.grid; 
+    CPUMemory.grid = nullptr;
+    delete[] CPUMemory.loaderPositions; 
+    CPUMemory.loaderPositions = nullptr;
+    delete[] CPUMemory.unloaderPositions; 
+    CPUMemory.unloaderPositions = nullptr;
+    delete[] CPUMemory.agents; 
+    CPUMemory.agents = nullptr;
+    delete[] colorAgents; 
+    colorAgents = nullptr;
+
+    delete[] CPUMemory.minSize_numberColision; 
+    CPUMemory.minSize_numberColision = nullptr;
+    delete[] CPUMemory.agentPaths; 
+    CPUMemory.agentPaths = nullptr;
+
+    delete[] CPUMemory.gCost; 
+    CPUMemory.gCost = nullptr;
+    delete[] CPUMemory.fCost; 
+    CPUMemory.fCost = nullptr;
+    delete[] CPUMemory.cameFrom; 
+    CPUMemory.cameFrom = nullptr;
+    delete[] CPUMemory.visited; 
+    CPUMemory.visited = nullptr;
+
+    delete[] CPUMemory.openList; 
+    CPUMemory.openList = nullptr;
+    delete[] CPUMemory.constraits; 
+    CPUMemory.constraits = nullptr;
+    delete[] CPUMemory.numberConstraits; 
+    CPUMemory.numberConstraits = nullptr;
+}
+
+
+void Map::reset() {
+    deleteMemory();
+    srand(time(nullptr));
+    while (is_need_init()) {
+        init();
+    }
+}
+
+bool Map::isConnected() {
+    std::pair<int, int> start = std::pair<int, int>{ -1, -1 };
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] != OBSTACLE_SYMBOL) {
+                start = { x, y };
+                break;
+            }
+        }
+        if (start.first != -1) break;
+    }
+    if (start.first == -1) {
+        return false;
+    }
+    std::vector<std::vector<bool>> visited0 = std::vector<std::vector<bool>>(CPUMemory.height, std::vector<bool>(CPUMemory.width));
+    for (int i = 0; i < visited0.size(); i++) {
+        for (int j = 0;j < visited0[i].size();j++) {
+            visited0[i][j] = false;
+        }
+    }
+
+    std::vector<std::pair<int, int>> stack;
+    stack.push_back(start);
+    visited0[start.second][start.first] = true;
+
+    while (!stack.empty()) {
+        auto c = stack.back();
+        stack.pop_back();
+        const std::vector<std::pair<int, int>> directions = {
+            {0, 1}, {1, 0}, {0, -1}, {-1, 0}
+        };
+        for (const auto& d : directions) {
+            int nx = c.first + d.first;
+            int ny = c.second + d.second;
+            if (nx >= 0 && nx < CPUMemory.width && ny >= 0 && ny < CPUMemory.height && CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, nx, ny)] != OBSTACLE_SYMBOL) {
+                if (!visited0[ny][nx]) {
+                    visited0[ny][nx] = true;
+                    stack.emplace_back(nx, ny);
+                }
+            }
+        }
+    }
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] != OBSTACLE_SYMBOL && !visited0[y][x]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool Map::is_need_init() {
+    if (CPUMemory.grid == nullptr || CPUMemory.agents == nullptr || CPUMemory.loaderPositions == nullptr || CPUMemory.unloaderPositions == nullptr) {
+        return true;
+    }
+    // HÂbkovÈ prehæad·vanie
+    return !isConnected();
+}
+
+void Map::findFree(int& x, int& y) {
+    do {
+        x = rand() % CPUMemory.width;
+        y = rand() % CPUMemory.height;
+    } while (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] != '.');
+}
+
+bool Map::isAgentIn(int x, int y, int lenghtAgentSearch) {
+    for (int j = 0; j < lenghtAgentSearch; j++){
+        Agent& agent = CPUMemory.agents[j];
+        if (agent.position.x == x && agent.position.y == y) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Map::initAgents() {
+    if (CPUMemory.agents != nullptr) {
+        delete[] CPUMemory.agents;
+    }
+    CPUMemory.agents = new Agent[CPUMemory.agentsCount];
+    if (agentFrames != nullptr) {
+        delete[] agentFrames;
+    }
+    agentFrames = new AgentFrame[CPUMemory.agentsCount];
+    if (colorAgents != nullptr) {
+        delete[] colorAgents;
+    }
+    colorAgents = new Color[CPUMemory.agentsCount];
+    if (CPUMemory.agentPaths != nullptr){
+        delete[] CPUMemory.agentPaths;
+    }
+	CPUMemory.agentPaths = new Position[CPUMemory.agentsCount * CPUMemory.width * CPUMemory.height];
+    for (int i = 0; i < CPUMemory.agentsCount; i++) {
+        int x, y;
+        while (true) {
+            findFree(x, y);
+            if (isAgentIn(x, y, i) == false) {
+                break;
+            }
+        }
+        Agent& agent = CPUMemory.agents[i];
+        AgentFrame& frame = agentFrames[i];
+        agent.position = Position{ x,y };        
+
+        frame.x = (double)agent.position.x;
+        frame.y = (double)agent.position.y;
+        agent.direction = AGENT_LOADER;
+        agent.loaderCurrent = 0;
+        agent.unloaderCurrent = 0;
+        colorAgents[i] = Color{ (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), (unsigned char)(rand() % 256), 255 };
+		agent.sizePath = 0;
+    }
+}
+
+void Map::initUnloader() {
+    if (CPUMemory.unloaderPositions != nullptr) {
+        delete[] CPUMemory.unloaderPositions;
+    }
+    CPUMemory.unloaderPositions = new Position[CPUMemory.unloadersCount];
+    for (int i = 0; i < CPUMemory.unloadersCount; i++) {
+        int x, y;
+        findFree(x, y);
+        CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] = UNLOADER_SYMBOL;
+        CPUMemory.unloaderPositions[i].x = x;
+        CPUMemory.unloaderPositions[i].y = y;
+    }
+}
+
+void Map::initLoader() {
+    if (CPUMemory.loaderPositions != nullptr) {
+        delete[] CPUMemory.loaderPositions;
+    }
+    CPUMemory.loaderPositions = new Position[CPUMemory.loadersCount];
+    for (int i = 0; i < CPUMemory.loadersCount; i++) {
+        int x, y;
+        findFree(x, y);
+        CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] = LOADER_SYMBOL;
+        CPUMemory.loaderPositions[i].x = x;
+        CPUMemory.loaderPositions[i].y = y;
+    }
+}
+
+void Map::initObstacle() {
+    for (int i = 0; i < obstacleCount; i++) {
+        int x, y;
+        findFree(x, y);
+        CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] = OBSTACLE_SYMBOL;
+    }
+}
+
+void Map::initGrid() {
+    if (CPUMemory.grid != nullptr) {
+        deleteMemory();
+    }
+    CPUMemory.grid = new char[CPUMemory.height* CPUMemory.width];
+    for (int i = 0; i < CPUMemory.height* CPUMemory.width; i++) {
+        CPUMemory.grid[i] = FREEFIELD_SYMBOL;
+    }
+}
+
+void Map::init() {
+    int gridSize = CPUMemory.height * CPUMemory.height;
+    int objectNumber = CPUMemory.loadersCount + CPUMemory.unloadersCount + CPUMemory.agentsCount + obstacleCount;
+    if (objectNumber >= (gridSize*3)/4) {
+        throw std::logic_error("overfilled map");
+    }
+    initMem();
+    initGrid();
+    initObstacle();
+    initLoader();
+    initUnloader();
+    initAgents();
+}
+
+void Map::initMem() {
+    if (!canInitializeMemory()) {
+        throw std::logic_error("not enough memory");
+    }
+
+    size_t mapSize = CPUMemory.width * CPUMemory.height;
+    size_t stackSize = CPUMemory.agentsCount * mapSize;
+
+    // NajskÙr uvoænÌme star˙ pam‰ù
+    delete[] CPUMemory.minSize_numberColision;
+    delete[] CPUMemory.gCost;
+    delete[] CPUMemory.fCost;
+    delete[] CPUMemory.cameFrom;
+    delete[] CPUMemory.visited;
+    delete[] CPUMemory.openList;
+    delete[] CPUMemory.constraits;
+    delete[] CPUMemory.numberConstraits;
+
+    try {
+        CPUMemory.minSize_numberColision = new int[1];
+        CPUMemory.gCost = new int[stackSize];
+        CPUMemory.fCost = new int[stackSize];
+        CPUMemory.cameFrom = new Position[stackSize];
+        CPUMemory.visited = new bool[stackSize];
+        CPUMemory.openList = new HeapPositionNode[stackSize];
+        CPUMemory.constraits = new Constraint[stackSize/4];
+        CPUMemory.numberConstraits = new int[CPUMemory.agentsCount];
+		CPUMemory.minSize_numberColision[0] = -200;
+		
+    }
+    catch (const std::bad_alloc& e) {
+        // Ak nastane chyba, dealokuj uû alokovan˙ pam‰ù
+        delete[] CPUMemory.minSize_numberColision;
+        delete[] CPUMemory.gCost;
+        delete[] CPUMemory.fCost;
+        delete[] CPUMemory.cameFrom;
+        delete[] CPUMemory.visited;
+        delete[] CPUMemory.openList;
+        delete[] CPUMemory.constraits;
+        delete[] CPUMemory.numberConstraits; 
+
+        throw std::runtime_error("Memory allocation failed " + std::string(e.what()));
+    }
+}
+
+bool Map::canInitializeMemory() {
+    size_t mapSize = CPUMemory.width * CPUMemory.height;
+    size_t stackSize = CPUMemory.agentsCount * mapSize;
+
+    size_t totalAlloc = 0;
+    totalAlloc += sizeof(MemoryPointers);
+    totalAlloc += sizeof(int); // minSize
+    totalAlloc += mapSize * sizeof(char); // grid
+    totalAlloc += CPUMemory.agentsCount * sizeof(Agent); // agents
+    totalAlloc += CPUMemory.loadersCount * sizeof(Position); // loaderPosition
+    totalAlloc += CPUMemory.unloadersCount * sizeof(Position); // unloaderPosition
+    totalAlloc += stackSize * sizeof(Position); // paths
+    totalAlloc += CPUMemory.agentsCount * sizeof(int); // pathSizes
+    totalAlloc += CPUMemory.agentsCount * sizeof(int); // contraitsSizes
+    totalAlloc += stackSize * sizeof(int); // gCost
+    totalAlloc += stackSize * sizeof(int); // fCost
+    totalAlloc += stackSize * sizeof(Position); // cameFrom
+    totalAlloc += stackSize * sizeof(bool); // visited
+    totalAlloc += stackSize * sizeof(Position); // openList
+    totalAlloc += stackSize * sizeof(Constraint) / 4; // constrait
+    totalAlloc += CPUMemory.agentsCount * sizeof(int); // numberConstrait
+    totalAlloc += CPUMemory.agentsCount * sizeof(Color);
+    size_t totalGlobalMem = getFreeRam();
+    if (totalAlloc >= ((totalGlobalMem * 3) / 4)) {
+        return false;
+    }
+    return true;
+}
+
+void Map::AddAgent(int x, int y) {
+    if (CPUMemory.agentsCount >= capacityAgents) {
+        capacityAgents = (capacityAgents == 0) ? 1 : capacityAgents * 2;
+        Agent* newAgents = new Agent[capacityAgents];
+        std::copy(CPUMemory.agents, CPUMemory.agents + CPUMemory.agentsCount, newAgents);
+        delete[] CPUMemory.agents;
+        CPUMemory.agents = newAgents;
+    }
+    Agent a = {};
+    a.position = Position{ x,y };
+    a.direction = AGENT_LOADER;
+    a.loaderCurrent = rand() % CPUMemory.loadersCount;
+    a.unloaderCurrent = rand() % CPUMemory.unloadersCount;
+    CPUMemory.agents[CPUMemory.agentsCount++] = a;
+}
+
+void Map::RemoveAgent(int x, int y) {
+    for (int i = 0; i < CPUMemory.agentsCount; i++) {
+        if (CPUMemory.agents[i].position.x == x && CPUMemory.agents[i].position.y == y) {
+            CPUMemory.agents[i] = CPUMemory.agents[--CPUMemory.agentsCount];
+            return;
+        }
+    }
+}
+
+void Map::AddLoader(int x, int y) {
+    if (CPUMemory.loadersCount >= capacityLoaders) {
+        capacityLoaders = (capacityLoaders == 0) ? 1 : capacityLoaders * 2;
+        Position* newLoaders = new Position[capacityLoaders];
+        std::copy(CPUMemory.loaderPositions, CPUMemory.loaderPositions + CPUMemory.loadersCount, newLoaders);
+        delete[] CPUMemory.loaderPositions;
+        CPUMemory.loaderPositions = newLoaders;
+    }
+    CPUMemory.loaderPositions[CPUMemory.loadersCount++] = { x, y };
+}
+
+void Map::RemoveLoader(int x, int y) {
+    for (int i = 0; i < CPUMemory.loadersCount; i++) {
+        if (CPUMemory.loaderPositions[i].x == x && CPUMemory.loaderPositions[i].y == y) {
+            CPUMemory.loaderPositions[i] = CPUMemory.loaderPositions[--CPUMemory.loadersCount];
+            return;
+        }
+    }
+}
+
+void Map::AddUnloader(int x, int y) {
+    if (CPUMemory.unloadersCount >= capacityUnloaders) {
+        capacityUnloaders = (capacityUnloaders == 0) ? 1 : capacityUnloaders * 2;
+        Position* newUnloaders = new Position[capacityUnloaders];
+        std::copy(CPUMemory.unloaderPositions, CPUMemory.unloaderPositions + CPUMemory.unloadersCount, newUnloaders);
+        delete[] CPUMemory.unloaderPositions;
+        CPUMemory.unloaderPositions = newUnloaders;
+    }
+    CPUMemory.unloaderPositions[CPUMemory.unloadersCount++] = { x, y };
+}
+
+void Map::RemoveUnloader(int x, int y) {
+    for (int i = 0; i <CPUMemory.unloadersCount; i++) {
+        if (CPUMemory.unloaderPositions[i].x == x && CPUMemory.unloaderPositions[i].y == y) {
+            CPUMemory.unloaderPositions[i] = CPUMemory.unloaderPositions[--CPUMemory.unloadersCount];
+            return;
+        }
+    }
+}
+
+// ===================================== draw ====================
+void Map::drawGrid(float cellWidth, float cellHeight, int frac) {
+    for (int y = 0; y < CPUMemory.height; y++) {
+        for (int x = 0; x < CPUMemory.width; x++) {
+            Rectangle rect = { static_cast<float>(x * cellWidth), static_cast<float>(y * cellHeight),
+                               static_cast<float>(cellWidth), static_cast<float>(cellHeight) };
+
+            Color c;
+            if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] == OBSTACLE_SYMBOL) {
+                c = BLACK;
+            }
+            else if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] == LOADER_SYMBOL) {
+                c = BLUE;
+                DrawText("I", rect.x + cellWidth / 4, rect.y + cellHeight / 4, 20, DARKGRAY);
+            }
+            else if (CPUMemory.grid[getTrueIndexGrid(CPUMemory.width, x, y)] == UNLOADER_SYMBOL) {
+                c = YELLOW;
+                DrawText("O", rect.x + cellWidth / 4, rect.y + cellHeight / 4, 20, DARKGRAY);
+            }
+            else {
+                c = RED;
+                DrawRectangleLinesEx(rect, 1, { c.r, c.g, c.b, static_cast<unsigned char>(std::max(255 / frac, 1)) });
+                continue;
+            }
+
+            c.a = static_cast<unsigned char>(std::max(c.a / frac, 1));
+            DrawRectangleRec(rect, c);
+        }
+    }
+}
+
+void Map::drawAgentPath(int agentIndex, float cellWidth, float cellHeight, int frac) {
+    if (CPUMemory.agents[agentIndex].sizePath <= 0) return;
+
+    Color c = colorAgents[agentIndex];
+    Color pathColor = { c.r, c.g, c.b, static_cast<unsigned char>(std::max(60 / frac, 1)) };
+
+    int offset = CPUMemory.width * CPUMemory.height;
+    Position* path = &CPUMemory.agentPaths[agentIndex * offset];
+
+    for (int i = 0; i < CPUMemory.agents[agentIndex].sizePath; i++) {
+        Position& pos = path[i];
+        Rectangle rect = { static_cast<float>(pos.x) * cellWidth, static_cast<float>(pos.y) * cellHeight,
+                           cellWidth, cellHeight };
+        DrawRectangleRec(rect, pathColor);
+    }
+}
+
+void Map::drawAgents(float cellWidth, float cellHeight, int frac) {
+    for (int i = 0; i < CPUMemory.agentsCount; i++) {
+        AgentFrame& agent = agentFrames[i];
+        Color& c = colorAgents[i];
+
+        double agentX = agent.x * cellWidth + cellWidth / 2;
+        double agentY = agent.y * cellHeight + cellHeight / 2;
+
+        Color greenTransparent = { GREEN.r, GREEN.g, GREEN.b, static_cast<unsigned char>(std::max(255 / frac, 1)) };
+        DrawCircle(agentX, agentY, cellWidth / 4, greenTransparent);
+        DrawCircle(agentX, agentY, cellWidth / 8, { c.r, c.g, c.b, c.a });
+    }
+
+    for (int i = 0; i < CPUMemory.agentsCount; i++) {
+        drawAgentPath(i, cellWidth, cellHeight, frac);
+    }
+}
+
+void Map::drawSelect(float cellWidth, float cellHeight, int frac) {
+    if (selected.x == -1) return;
+
+    Color selectedColor = { 255, 0, 0, static_cast<unsigned char>(std::max(191 / frac, 1)) };
+    Rectangle selectedRect = { static_cast<float>(selected.x) * cellWidth, static_cast<float>(selected.y) * cellHeight,
+                               cellWidth, cellHeight };
+
+    DrawRectangleLinesEx(selectedRect, 3, selectedColor);
+}
+
+void Map::draw(float screenWidth, float screenHeight) {
+    draw2(screenWidth, screenHeight, 1);
+}
+
+void Map::draw2(float screenWidth, float screenHeight, int frac) {
+    if (CPUMemory.grid == nullptr){
+        return;
+    }
+    float cellWidth = screenWidth / (float) CPUMemory.width;
+    float cellHeight = screenHeight / (float) CPUMemory.height;
+
+    drawGrid(cellWidth, cellHeight, frac);
+    drawAgents(cellWidth, cellHeight, frac);
+    drawSelect(cellWidth, cellHeight, frac);
+}
+
+bool Position::operator<(const Position& other) const {
+    return x < other.x && y < other.y;
+}
+
+bool Position::operator==(const Position& other) const {
+    return x == other.x && y == other.y;
+}
+
+bool Position::operator!=(const Position& other) const {
+    return !(*this == other);
+}
+
+size_t std::hash<Position>::operator()(const Position& p) const noexcept {
+    return std::hash<int>()(p.x) ^ (std::hash<int>()(p.y) << 1);
+}
+
+// ak zv˝öi Ëas TODO MULTIPLATFORM
+long long getFreeRam() {
+    return 4LL * 1024 * 1024 * 1024; // return 4 GB as standart
+}
+
+
+// ===== .\map.h =====
+#pragma once
+#include <map>
+#include <string>
+#include "raylib.h"
+#include <unordered_set>
+#include <utility>
+#include <vector>
+#include <iostream>
+
+#define AGENT_UNLOADER 1
+#define AGENT_LOADER 2
+
+#define LOADER_SYMBOL 'I'
+#define UNLOADER_SYMBOL 'O'
+#define OBSTACLE_SYMBOL '#'
+#define FREEFIELD_SYMBOL '.'
+
+// nno map symbol
+#define AGENT_SYMBOL 'A'
+
+struct Position {
+    int x, y;
+
+    bool operator<(const Position& other) const;
+    bool operator==(const Position& other) const;
+    bool operator!=(const Position& other) const;
+};
+
+// äpecializ·cia hash funkcie pre `Position`
+namespace std {
+    template<>
+    struct hash<Position> {
+        size_t operator()(const Position& p) const noexcept;
+    };
+}
+
+
+struct Agent {
+    int sizePath = 0;
+    int unloaderCurrent;
+    int loaderCurrent;
+    unsigned char direction, mustWait = 0;
+    Position position, goal;
+};
+
+struct AgentFrame{
+    double x = 0, y = 0;
+};
+
+
+#define MOVE_CONSTRATNT 1
+#define BLOCK_CONSTRATNT 2
+struct Constraint {
+    Position to;
+	int type, timeStep;
+};
+
+struct HeapPositionNode {
+    Position pos;
+    int priority;
+};
+
+struct positionHeap {
+    HeapPositionNode* heap;
+    int size;
+};
+
+struct MemoryPointers{
+    int width, height, loadersCount, unloadersCount, agentsCount;
+    char* grid = nullptr;
+    Position* loaderPositions = nullptr;
+    Position* unloaderPositions = nullptr;
+    Agent* agents = nullptr;
+
+    int* minSize_numberColision = nullptr;
+    Position* agentPaths = nullptr;
+
+    int* gCost = nullptr;
+    int* fCost = nullptr;
+    Position* cameFrom = nullptr;
+    bool* visited = nullptr;
+
+    HeapPositionNode* openList = nullptr;
+    Constraint* constraits = nullptr;
+    int* numberConstraits = nullptr;
+};
+
+class Map {
+public:
+    MemoryPointers CPUMemory;
+    void save(const std::string& baseFilename);
+    void load(const std::string& filename);
+    void setGoals();
+    void draw(float screenWidth, float screenHeight); 
+    void draw2(float screenWidth, float screenHeight, int frac);
+    AgentFrame* agentFrames = nullptr;
+
+    Map(int width, int height, int agentCount, int obstacleCount, int loaderCount, int unloaderCount);
+    Map();
+    ~Map();
+    void reset();
+// private:
+    int obstacleCount;
+    Color* colorAgents = nullptr;
+    Position selected = Position{ -1,-1 };
+    bool isConnected();
+    std::string getUniqueFilename(const std::string& base);
+    void setNullptr();
+    void saveGrid(std::stringstream* outputString);
+    void saveAgents(std::stringstream* outputString);
+    void saveDocks(std::stringstream* outputString);
+    
+    void drawGrid(float cellWidth, float cellHeight, int frac);
+    void drawAgents(float cellWidth, float cellHeight, int frac);
+    void drawAgentPath(const int agentIndex, float cellWidth, float cellHeight, int frac);
+    void drawSelect(float cellWidth, float cellHeight, int frac);
+
+    void loadData(const std::string& filename, std::stringstream& inputString);
+    void loadDocks(std::stringstream* inputString);
+    void loadAgents(std::stringstream* inputString);
+    void loadGrid(std::stringstream* input_string);
+
+    bool is_need_init();
+    bool isAgentIn(int x, int y, int i);
+    void initAgents();
+    void initUnloader();
+    void initLoader();
+    void findFree(int& x, int& y);
+    void initObstacle();
+    void initGrid();
+    void init();
+    void initMem();
+    bool canInitializeMemory();
+    void deleteMemory();
+    int capacityAgents;
+    int capacityLoaders;
+    int capacityUnloaders;
+
+    void AddAgent(int x, int y);
+    void RemoveAgent(int x, int y);
+    void AddLoader(int x, int y);
+    void RemoveLoader(int x, int y);
+    void AddUnloader(int x, int y);
+    void RemoveUnloader(int x, int y);
+};
+
+// ak zv˝öi Ëas TODO MULTIPLATFORM
+long long getFreeRam();
+
+std::vector<std::string> getSavedFiles(const std::string& folder, const std::string& extension);
+
+
+
+// ===== .\memSimulation.h =====
+#pragma once
+
+#include <mutex>
+#include <thread>
+#include <atomic>
+#include "device_type_algoritmus.h"
+#include <map>
+#include <vector>
+#include "map.h"
+
+struct MemSimulation {
+    int indexType;
+    std::string buttonMsg;
+    std::map<ComputeType, std::string> stringMap{};
+    std::vector<ComputeType> method{};
+    bool hasInfo = false, isCPUOverGPU = false;
+    Info i;
+    std::mutex simMutex;
+    std::thread *simThread = nullptr;
+    std::atomic<bool> isRunning = false;
+    Map* map;
+
+    ~MemSimulation() {
+        sweepThread();
+      if (map != nullptr) {
+          delete map;
+      }
+    }
+    void sweepThread(){
+        if (simThread != nullptr) {
+            if (simThread->joinable()) {
+                simThread->join();
+            }
+            delete simThread;
+        }
+    }
+};
+
+
+// ===== .\move_agent.cpp =====
+#include "compute.h"
+#include "map.h" 
+
+void lookRemoveOldColisions(int agentID, MemoryPointers& localMemory, int moveSize) {
+	int count = localMemory.numberConstraits[agentID];
+	if (count == 0) return; 
+	Constraint* constraints = localMemory.constraits;
+	int newCount = 0;
+	for (int i = 0; i < count; i++) {
+		Constraint c = constraints[i];
+		c.timeStep = c.timeStep - moveSize;
+		if (c.timeStep >= 0){
+			constraints[newCount] = c;
+			newCount++;
+		}
+	}
+	localMemory.numberConstraits[agentID] = newCount;
+}
+
+void moveAgentForIndex(int id, MemoryPointers& localMemory) {
+	Agent& a = localMemory.agents[id];
+	const int moveSize = *localMemory.minSize_numberColision;
+	if (moveSize <= 0){
+		return;
+	}
+	int agentSizePath = localMemory.agents[id].sizePath;
+	if (moveSize  == agentSizePath){
+		if (a.direction == AGENT_LOADER) {
+			Position& loader = localMemory.loaderPositions[a.loaderCurrent];
+			a.direction = AGENT_UNLOADER;
+			a.loaderCurrent = (a.loaderCurrent + 1 + moveSize) % localMemory.loadersCount;
+			// TODO random
+			a.sizePath = 0;
+			a.position = loader;
+			a.goal = localMemory.loaderPositions[a.loaderCurrent];
+			localMemory.numberConstraits[id] = 0;
+			return;
+		}
+		else {
+			Position& unloader = localMemory.unloaderPositions[a.unloaderCurrent];
+			a.direction = AGENT_LOADER;
+			a.unloaderCurrent = (a.unloaderCurrent + 1 + moveSize) % localMemory.unloadersCount;
+			a.sizePath = 0;
+			a.position = unloader;
+			a.goal = localMemory.unloaderPositions[a.unloaderCurrent];
+			localMemory.numberConstraits[id] = 0;
+			return;
+		}
+	}
+	a.position = localMemory.agentPaths[moveSize - 1];
+
+	for (int i = moveSize; i < agentSizePath; i++) {
+		localMemory.agentPaths[i - moveSize] = localMemory.agentPaths[i];
+	}
+	localMemory.agents[id].sizePath = localMemory.agents[id].sizePath - moveSize;
+	lookRemoveOldColisions(id, localMemory, moveSize);
+}
+
+
+// ===== .\parameterScene.cpp =====
+
+
+#include <iostream>
+#include <sstream>
+#include <string>
+
+#include "raylib.h"
+#include "map.h"
+#include "raygui.h"
+
+#include "scene.h"
+#include "parameterScene.h"
+#include "viewScene.h"
+
+Scene* ParameterScene::DrawControl(){
+    DrawText("Set Parameters", 350, 50, 20, DARKGRAY);
+
+    if (GuiValueBox({ 300, 100, 200, 20 }, "Width", &mapWidth, 5, 50, activeWidth)) {
+        activeWidth = !activeWidth;
+        alert = activeHeight = activeAgents = activeObstacles = activeMarkers = activeLoaders = activeUnloaders = false;
+    }
+    if (GuiValueBox({ 300, 140, 200, 20 }, "Height", &mapHeight, 5, 50, activeHeight)) {
+        activeHeight = !activeHeight;
+        alert = activeWidth = activeAgents = activeObstacles = activeMarkers = activeLoaders = activeUnloaders = false;
+    }
+    if (GuiValueBox({ 300, 180, 200, 20 }, "Agents", &agentCount, 1, 50, activeAgents)) {
+        activeAgents = !activeAgents;
+        alert = activeWidth = activeHeight = activeObstacles = activeMarkers = activeLoaders = activeUnloaders = false;
+    }
+    if (GuiValueBox({ 300, 220, 200, 20 }, "Obstacles", &obstacleCount, 1, 100, activeObstacles)) {
+        activeObstacles = !activeObstacles;
+        alert = activeWidth = activeHeight = activeAgents = activeMarkers = activeLoaders = activeUnloaders = false;
+    }
+    if (GuiValueBox({ 300, 300, 200, 20 }, "Loaders", &loaderCount, 1, 20, activeLoaders)) {
+        activeLoaders = !activeLoaders;
+        alert = activeWidth = activeHeight = activeAgents = activeObstacles = activeMarkers = activeUnloaders = false;
+    }
+    if (GuiValueBox({ 300, 340, 200, 20 }, "Unloaders", &unloaderCount, 1, 20, activeUnloaders)) {
+        activeUnloaders = !activeUnloaders;
+        alert = activeWidth = activeHeight = activeAgents = activeObstacles = activeMarkers = activeLoaders = false;
+    }
+
+    if (GuiButton({ 300, 450, 200, 50 }, "Generate Map")) {
+        if (mapWidth > 5 && mapHeight > 5 && agentCount > 0 &&
+            loaderCount > 0 && unloaderCount > 0) {
+            Map* generatedMap = new Map(mapWidth, mapHeight, agentCount,
+                obstacleCount, loaderCount, unloaderCount);
+            return new ViewScene(generatedMap);
+        }
+        else {
+            alert = true;
+        }
+    }
+    if (alert){
+        std::stringstream ss;
+        ss << "minimal width is " << 5 << ", minimal height is 5, minimal numbers of agents, loaders and unloader are 1";
+        std::string s = ss.str();
+        DrawText(s.c_str(), 300, 470, 20, RED);
+    }
+
+    return this;
+}
+
+
+
+// ===== .\parameterScene.h =====
+#pragma once
+
+#include "scene.h"
+
+class ParameterScene : public Scene {
+    int mapWidth = 10;
+    int mapHeight = 10;
+    int agentCount = 3;
+    int obstacleCount = 7;
+    int loaderCount = 2;
+    int unloaderCount = 2;
+
+    bool activeWidth = false;
+    bool activeHeight = false;
+    bool activeAgents = false;
+    bool activeObstacles = false;
+    bool activeMarkers = false;
+    bool activeLoaders = false;
+    bool activeUnloaders = false;
+    bool alert = false;
+public:
+    ParameterScene() = default;
+    Scene* DrawControl() override;
+    ~ParameterScene() = default;
+};
+
+
+
+// ===== .\scene.h =====
+#pragma once
+
+#ifndef SCENE_H
+#define SCENE_H
+
+#pragma once
+
+extern float screenWidth;
+extern float screenHeight;
+
+class Scene {
+public:
+    virtual Scene* DrawControl() = 0;
+    virtual ~Scene() = default;
+
+    static float GetWindowHeight() { return screenHeight; }
+    static float GetWindowWidth() { return screenWidth; }
+};
+
+#endif
+
+
+
+// ===== .\simulationScene.cpp =====
+#include "simulationScene.h"
+#include "viewScene.h"
+#include "raygui.h"
+#include "infoScene.h"
+#include "compute.h"
+#include "fill_init_convert.h"
+
+void SimulationScene::switchComputeType() {
+    mem->indexType = (mem->indexType + 1) % mem->method.size();
+    mem->buttonMsg = mem->stringMap[mem->method[mem->indexType]];
+}
+
+void SimulationScene::runSimulation() {
+    if (mem->isRunning) {
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> lock(mem->simMutex);
+        if (mem->isRunning) {
+            return;
+        }
+        mem->isRunning = true;
+    }
+    mem->sweepThread();
+    mem->simThread = new std::thread([this]() {
+        Map* m = mem->map;
+        mem->i = letCompute(mem->method[mem->indexType], m);
+        mem->hasInfo = true;
+        });
+}
+
+SimulationScene::SimulationScene(Map* map) {
+    mem = new MemSimulation();
+    mem->map = map;
+    mem->method.reserve(5);
+    mem->method.emplace_back(ComputeType::pureProcesor);
+    mem->method.emplace_back(ComputeType::pureProcesorOneThread);
+    mem->method.emplace_back(ComputeType::pureGraphicCard);
+    mem->method.emplace_back(ComputeType::hybridGPUCPU);
+    mem->method.emplace_back(ComputeType::highProcesor);
+    mem->indexType = 0;
+    mem->buttonMsg = "repeat D* gpu algoritmus on cpu";
+    mem->stringMap.emplace(ComputeType::pureProcesor, mem->buttonMsg);
+    mem->stringMap.emplace(ComputeType::pureProcesorOneThread, "repeat D* gpu algoritmus on cpu 1 thread");
+    mem->stringMap.emplace(ComputeType::pureGraphicCard, "non-optimal gpu algoritmus");
+    mem->stringMap.emplace(ComputeType::highProcesor, "CBS algoritmus on only cpu");
+    mem->stringMap.emplace(ComputeType::hybridGPUCPU, "CBS algoritmus on combination gpu and cpu");
+    initializeSYCLMemory(map);
+	synchronizeGPUFromCPU(map);
+}
+
+SimulationScene::SimulationScene(MemSimulation* mem0) : mem(mem0) {
+    mem->sweepThread();
+    mem->simThread = new std::thread([this]() {
+        tik();
+        mem->isRunning = false;
+        });
+    mem->hasInfo = false;
+}
+
+Scene* SimulationScene::DrawControl() {
+    mtx.lock();
+    mem->map->draw2(GetWindowWidth(), GetWindowHeight()-40, 1);
+    mtx.unlock();
+    if (GuiButton(Rectangle{ 50, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Back")) {
+        mem->isRunning = false;
+        shouldEnd = true;
+        Scene* r = new ViewScene(mem->map);
+        mem->map = nullptr;
+        return r;
+
+    }
+    if (!mem->isRunning && GuiButton(Rectangle{ 270, static_cast<float>(GetWindowHeight()) - 40, 300, 30 }, mem->buttonMsg.c_str())) {
+        switchComputeType();
+    }
+
+    if (!mem->isRunning && GuiButton(Rectangle{ 160, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Run")) {
+        runSimulation();
+    }
+    if (mem->hasInfo){
+        Scene* r = new InfoScene(mem);
+        mem = nullptr;
+        return r;
+    }
+    return this;
+}
+SimulationScene::~SimulationScene() {
+    if (mem != nullptr){
+        shouldEnd = true;
+        delete mem;
+    }
+}
+
+void SimulationScene::tik(){
+    MemoryPointers& globalMemory = mem->map->CPUMemory;
+    Map* map = mem->map;
+    int size = globalMemory.minSize_numberColision[0];
+    int agentsCount = globalMemory.agentsCount;
+    const int mapSize = globalMemory.width * globalMemory.height;
+    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    int step = 60;
+    for (int i = 1; i < size; i++){
+        for (int j = 0; j < step; j++){
+            mtx.lock();
+            for (int agentID = 0; agentID < agentsCount; agentID++){
+                int offset = mapSize * agentID;
+                Position *agentPath = &(globalMemory.agentPaths[offset]);
+                Position current = agentPath[i - 1];
+                Position next = agentPath[i];
+                float deltaX = static_cast<float>((static_cast<double>(next.x - current.x) * static_cast<double>(j)) / static_cast<double>(step));
+                float deltaY = static_cast<float>((static_cast<double>(next.y - current.y) * static_cast<double>(j)) / static_cast<double>(step));
+                AgentFrame& frame = map->agentFrames[agentID];
+                frame.x = (float)current.x + deltaX;
+                frame.y = (float)current.y + deltaY;
+            }
+            mtx.unlock();
+            if (shouldEnd) {
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(400)/step);
+            if (shouldEnd){
+                return;
+            }
+        }
+    }
+
+    if (1 == size) {
+        for (int j = 0; j < step; j++) {
+            mtx.lock();
+            for (int agentID = 0; agentID < agentsCount; agentID++) {
+                int offset = mapSize * agentID;
+                Position* agentPath = &(globalMemory.agentPaths[offset]);
+                Position current = globalMemory.agents[agentID].position;
+                Position next = agentPath[0];
+                float deltaX = static_cast<float>((static_cast<double>(next.x - current.x) * static_cast<double>(j)) / static_cast<double>(step));
+                float deltaY = static_cast<float>((static_cast<double>(next.y - current.y) * static_cast<double>(j)) / static_cast<double>(step));
+                AgentFrame& frame = map->agentFrames[agentID];
+                frame.x = (float)current.x + deltaX;
+                frame.y = (float)current.y + deltaY;
+            }
+            mtx.unlock();
+            if (shouldEnd) {
+                return;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(400) / step);
+            if (shouldEnd) {
+                return;
+            }
+        }
+    }
+    mtx.lock();
+    for (int agentID = 0; agentID < agentsCount; agentID++){
+        MemoryPointers localMemory;
+        fillLocalMemory(globalMemory, agentID, localMemory);
+        moveAgentForIndex(agentID, localMemory);
+        Position current = globalMemory.agents[agentID].position;
+        AgentFrame& frame = map->agentFrames[agentID];
+        frame.x = (float)current.x;
+        frame.y = (float)current.y;
+    }
+    mtx.unlock();
+}
+
+
+
+// ===== .\simulationScene.h =====
+#pragma once
+#include "scene.h"
+#include "map.h"
+#include "memSimulation.h"
+#include <mutex>
+
+
+
+class SimulationScene : public Scene {
+private:
+    void switchComputeType();
+    void runSimulation();
+    MemSimulation* mem;
+    std::mutex mtx;
+    bool shouldEnd = false;
+
+public:
+    SimulationScene(Map* map);
+    SimulationScene(MemSimulation *mem);
+    Scene* DrawControl() override;
+    ~SimulationScene();
+    void tik();
+};
+
+
+// ===== .\solve_conflicts.cpp =====
+Ôªø#include "solve_conflicts.h"
+#include "map.h"
+#include "heap_primitive.h"
+#include <limits>
+#include <thread> 
+#include "fill_init_convert.h"
+#include "a_star_algo.h"
+
+int max_path(MemoryPointers& localMemory) {
+    int maxSize = localMemory.agents[0].sizePath;
+    int agentCount = localMemory.agentsCount;
+    for (int i = 1; i < agentCount; i++) {
+        int candidate = localMemory.agents[i].sizePath;
+        if (maxSize < candidate) {
+            maxSize = candidate;
+        }
+    }
+    return maxSize;
+}
+
+void writeMinimalPath(const MemoryPointers& globalMemory) {
+    int minSize = globalMemory.agents[0].sizePath;
+    for (int i = 1; i < globalMemory.agentsCount; i++) {
+        int candidate = globalMemory.agents[i].sizePath;
+        if (candidate < minSize) {
+            minSize = candidate;
+        }
+    }
+    *globalMemory.minSize_numberColision = minSize;
+}
+
+bool checkCollision(int agentId, int& conflictAgentId, int t, Constraint& conflictFuturePos, const MemoryPointers& globalMemory) {
+    const int mapSize = globalMemory.width * globalMemory.height;
+    Position* pathAgent = &globalMemory.agentPaths[agentId * mapSize];
+    Position nextPos = pathAgent[t + 1];
+    Position currentPos = pathAgent[t];
+
+    for (int agentId2 = 0; agentId2 < globalMemory.agentsCount; agentId2++) {
+        if (agentId == agentId2) continue;
+
+        Position* pathOther = &globalMemory.agentPaths[agentId2 * mapSize];
+        int otherPathSize = globalMemory.agents[agentId2].sizePath;
+
+        if (t >= otherPathSize - 1) continue;
+
+        Position otherNextPos = pathOther[t + 1];
+        Position otherCurrentPos = pathOther[t];
+
+        if (nextPos.x == otherCurrentPos.x && nextPos.y == otherCurrentPos.y &&
+            otherNextPos.x == currentPos.x && otherNextPos.y == currentPos.y) {
+            conflictAgentId = agentId2;
+            conflictFuturePos = { otherNextPos, MOVE_CONSTRATNT | (agentId2 << 2), t };
+            return true;
+        }
+
+        if (otherNextPos.x == nextPos.x && otherNextPos.y == nextPos.y) {
+            conflictAgentId = agentId2;
+            conflictFuturePos = { otherNextPos, MOVE_CONSTRATNT | (agentId2 << 2), t };
+            return true;
+        }
+    }
+    return false;
+}
+
+void lookRemoveOldConstrait(int agentID, const MemoryPointers& globalMemory, MemoryPointers& localMemory) {
+    int count = localMemory.numberConstraits[agentID], newCount = 0, mapSize = localMemory.height*localMemory.width;
+    if (count == 0) return;
+    Constraint* constraints = localMemory.constraits;
+    for (int i = 0; i < count; i++){
+        Constraint c = constraints[i];
+        Position p = c.to;
+        int t = c.timeStep, otherID = (c.type >> 2);
+        Agent a = globalMemory.agents[otherID];
+        if (a.sizePath <= t){
+            continue;
+        }
+        Position otherP = globalMemory.agentPaths[otherID * mapSize + t];
+        if (otherP.x != p.x || otherP.y != p.y){
+            continue;
+        }
+        constraints[newCount] = c;
+        newCount++;
+    }
+    localMemory.numberConstraits[agentID] = newCount;
+}
+
+
+bool shouldYield(int agentId, int conflictAgentId, Agent* agents) {
+    Agent& a = agents[agentId], & b = agents[conflictAgentId];
+    if (a.direction != b.direction) {
+        return (a.direction == AGENT_LOADER);
+    }
+    if (a.sizePath != b.sizePath) {
+        return (a.sizePath > b.sizePath);
+    }
+    return (agentId > conflictAgentId);
+}
+
+void processAgentCollisionsGPU(const MemoryPointers& globalMemory, MemoryPointers& localMemory, sycl::nd_item<1> item) {
+    int agentID = item.get_local_id(0);
+    sycl::atomic_ref<int, sycl::memory_order::relaxed, sycl::memory_scope::device,
+        sycl::access::address_space::global_space>
+        collision_flag(*globalMemory.minSize_numberColision);
+    collision_flag.fetch_or(1);
+    bool private_reconstruct_flag = true;
+    astar_algorithm(agentID, localMemory);
+    while (true) {
+        item.barrier();
+        if (collision_flag.load() == 0) { break; }
+        if (private_reconstruct_flag){
+            localMemory.agents[agentID].sizePath = reconstructPath(agentID, localMemory);
+            private_reconstruct_flag = false;
+        }
+        item.barrier();
+        if (agentID == 0) { collision_flag.store(0); }
+        int pathSize = localMemory.agents[agentID].sizePath;
+        lookRemoveOldConstrait(agentID, globalMemory, localMemory);
+        for (int timeStep = 0; timeStep < pathSize - 1; timeStep++) {
+            int conflictAgentId = -1;
+            Constraint conflictFuturePos = { { -1, -1 }, -1, -1 };
+            if (checkCollision(agentID, conflictAgentId, timeStep, conflictFuturePos, globalMemory) &&
+                shouldYield(agentID, conflictAgentId, localMemory.agents)) {
+                int indexTopConstrait = localMemory.numberConstraits[agentID];
+                localMemory.constraits[indexTopConstrait] = conflictFuturePos;
+                localMemory.numberConstraits[agentID] += 1;
+                collision_flag.fetch_or(1);
+                astar_algorithm(agentID, localMemory);
+                private_reconstruct_flag = true;
+                break;
+            }
+        }
+    }
+}
+
+void processAgentCollisionsCPU(const MemoryPointers& globalMemory, MemoryPointers& localMemory, MyBarrier& item, int agentID) {
+    std::atomic<int>& collision_flag = reinterpret_cast<std::atomic<int>&>(*globalMemory.minSize_numberColision);
+    collision_flag.fetch_or(1);
+    bool private_reconstruct_flag = true;
+    astar_algorithm(agentID, localMemory);
+    while (true) {
+        item.barrier();
+        if (collision_flag.load() == 0) { break; }
+        if (private_reconstruct_flag) {
+            localMemory.agents[agentID].sizePath = reconstructPath(agentID, localMemory);
+            private_reconstruct_flag = false;
+        }
+        item.barrier();
+        if (agentID == 0) { collision_flag.store(0); }
+        int pathSize = localMemory.agents[agentID].sizePath;
+        lookRemoveOldConstrait(agentID, globalMemory, localMemory);
+        for (int timeStep = 0; timeStep < pathSize - 1; timeStep++) {
+            int conflictAgentId = -1;
+            Constraint conflictFuturePos = { { -1, -1 }, -1, -1 };
+            if (checkCollision(agentID, conflictAgentId, timeStep, conflictFuturePos, globalMemory) &&
+                shouldYield(agentID, conflictAgentId, localMemory.agents)) {
+                int indexTopConstrait = localMemory.numberConstraits[agentID];
+                localMemory.constraits[indexTopConstrait] = conflictFuturePos;
+                localMemory.numberConstraits[agentID] += 1;
+                collision_flag.fetch_or(1);
+                astar_algorithm(agentID, localMemory);
+                private_reconstruct_flag = true;
+                break;
+            }
+        }
+    }
+}
+
+void processAgentCollisionsCPUOneThread(const MemoryPointers& globalMemory) {
+    int collision_flag = 1;
+    int agentCount = globalMemory.agentsCount;
+    std::vector<MemoryPointers> localMemorys(agentCount);
+    std::vector<bool> private_reconstruct_flags(agentCount);
+
+    for (int agentID = 0; agentID < agentCount; agentID++){
+        fillLocalMemory(globalMemory, agentID, localMemorys[agentID]);
+        MemoryPointers &localMemory = localMemorys[agentID];
+        astar_algorithm(agentID, localMemory);
+        private_reconstruct_flags[agentID] = true;        
+    }
+    while (collision_flag != 0) {
+        collision_flag = 0;
+        for (int agentID = 0; agentID < agentCount; agentID++) {
+            if (private_reconstruct_flags[agentID]) {
+                localMemorys[agentID].agents[agentID].sizePath = reconstructPath(agentID, localMemorys[agentID]);
+                private_reconstruct_flags[agentID] = false;
+            }
+        }
+        for (int agentID = 0; agentID < agentCount; agentID++) {
+            MemoryPointers& localMemory = localMemorys[agentID];
+            int pathSize = localMemory.agents[agentID].sizePath;
+            lookRemoveOldConstrait(agentID, globalMemory, localMemory);
+            for (int timeStep = 0; timeStep < pathSize - 1; timeStep++) {
+                int conflictAgentId = -1;
+                Constraint conflictFuturePos = { { -1, -1 }, -1, -1 };
+                if (checkCollision(agentID, conflictAgentId, timeStep, conflictFuturePos, globalMemory) &&
+                    shouldYield(agentID, conflictAgentId, localMemory.agents)) {
+                    int indexTopConstrait = localMemory.numberConstraits[agentID];
+                    localMemory.constraits[indexTopConstrait] = conflictFuturePos;
+                    localMemory.numberConstraits[agentID] += 1;
+                    collision_flag = 1;
+                    astar_algorithm(agentID, localMemory);
+                    private_reconstruct_flags[agentID] = true;
+                    break;
+                }
+            }
+        }
+    }
+}
+
+
+// ===== .\solve_conflicts.h =====
+#pragma once
+#include "heap_primitive.h"
+
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <vector>
+#include <sycl/sycl.hpp>
+#include "map.h"
+
+class MyBarrier {
+    std::mutex mutex;
+    std::condition_variable cond;
+    int count;
+    const int origin;  // PoËet vl·kien, ktorÈ musia doraziù na bariÈru
+
+public:
+    explicit MyBarrier(int count) : count(count), origin(count) {}
+
+    void barrier() {
+        std::unique_lock<std::mutex> lock(mutex);  // Pouûi unique_lock pre wait()
+
+        if (--count == 0) {
+            count = origin;  // Resetujeme count pre Ôalöie pouûitie
+            cond.notify_all();  // Odomkneme vöetky Ëakaj˙ce vl·kna
+        }
+        else {
+            cond.wait(lock, [this]() { return count == origin; });  // »ak·me na reset countu
+        }
+    }
+};
+
+SYCL_EXTERNAL void processAgentCollisionsGPU(const MemoryPointers& globalMemory, MemoryPointers& localMemory, sycl::nd_item<1> item);
+SYCL_EXTERNAL void writeMinimalPath(const MemoryPointers& globalMemory);
+
+void processAgentCollisionsCPUOneThread(const MemoryPointers& globalMemory);
+void processAgentCollisionsCPU(const MemoryPointers& globalMemory, MemoryPointers& localMemory, MyBarrier& b, int agentId);
+
+
+
+// ===== .\viewScene.cpp =====
+#include "viewScene.h"
+#include "mainScene.h"
+#include "parameterScene.h"
+#include "simulationScene.h"
+#include "raygui.h"
+#include "changeScene.h"
+
+Scene* ViewScene::DrawControl() {
+    map->draw(GetWindowWidth(), GetWindowHeight() - 50);
+
+    // TextovÈ pole
+    if (GuiTextBox(Rectangle{ 650, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, textBoxBuffer, 128, textBoxEditMode)) {
+        textBoxEditMode = !textBoxEditMode; // Zmena reûimu edit·cie pri kliknutÌ
+    }
+
+    if (!wasLoad && GuiButton(Rectangle{ 50, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Save and start")) {
+        map->save(textBoxBuffer[0] != '\0' ? textBoxBuffer : "world"); // Uloûenie s n·zvom z textovÈho poæa
+        return StartSimulation();
+    }
+
+    if (GuiButton(Rectangle{ 160, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "New")) {
+        map->reset();
+        return this;
+    }
+
+    if (GuiButton(Rectangle{ 270, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Back")) {
+        return new MainScene();
+    }
+
+    if (GuiButton(Rectangle{ 380, static_cast<float>(GetWindowHeight()) - 40, 130, 30 }, "Start without save")) {
+        return StartSimulation();
+    }
+
+    if (GuiButton(Rectangle{ 520, static_cast<float>(GetWindowHeight()) - 40, 100, 30 }, "Change")) {
+        Scene* result = new ChangeScene(map);
+        map = nullptr;
+        return result;
+    }
+    return this;
+}
+
+void ViewScene::setWasLoad(){
+    wasLoad = true;
+}
+
+Scene* ViewScene::StartSimulation() {
+    SimulationScene* result = new SimulationScene(map);
+    map = nullptr;
+    return result;
+}
+
+ViewScene::~ViewScene() {
+    if (map != nullptr) {
+        delete map;
+    }
+    delete[] textBoxBuffer;
+}
+
+ViewScene::ViewScene(Map* map) : map(map) {
+    textBoxBuffer = new char[128];
+    char temt[128] = "world";
+    std::copy(temt, temt + std::strlen(temt) + 1, textBoxBuffer);
+    textBoxEditMode = false;
+    wasLoad = false;
+}
+
+
+// ===== .\viewScene.h =====
+#pragma once
+
+
+#include "scene.h"
+#include "map.h"
+
+class ViewScene : public Scene {
+private:
+    Map* map;
+    Scene* StartSimulation();
+     char* textBoxBuffer = nullptr; 
+     bool textBoxEditMode, wasLoad;
+
+public:
+    ViewScene(Map* map);
+    ~ViewScene();
+    Scene* DrawControl() override;
+    void setWasLoad();
+};
+
+
