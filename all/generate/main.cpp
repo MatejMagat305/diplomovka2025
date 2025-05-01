@@ -1,4 +1,4 @@
-#include "map.h"
+de "map.h"
 #include <string>
 #include <vector>
 #include <iostream>
@@ -34,7 +34,7 @@ int init(const std::string& name) {
 
 int main() {
     std::vector<int> sizes = { 16, 24, 32, 64, 128, 256, 512, 1024 };
-    std::vector<int> agentCounts = { 3, 4, 8, 16, 32, 64 };
+    std::vector<int> agentCounts = { 3, 4, 7, 8, 15, 16, 31, 32, 63, 64 };
 
     for (int size : sizes) {
         for (int agents : agentCounts) {
@@ -45,18 +45,19 @@ int main() {
             int unloaders = loaders;
 
             // Prekážky: od 0 po 1/4 veľkosti mapy
-            for (int obstacleCount = 0; obstacleCount < size/4; ++obstacleCount) {
-                try{
-                    Map map = Map(size, size, agents, obstacleCount, loaders, unloaders); 
+            for (int fraction = 0; fraction <= 4; ++fraction) {
+                int obstacleCount = (size * fraction) / 16; // 0 až 1/4 plochy
+                try {
+                    Map map = Map(size, size, agents, obstacleCount, loaders, unloaders);
                     std::string fileName = "map_" + std::to_string(size) + "x" + std::to_string(size) +
                         "_a" + std::to_string(agents) +
                         "_o" + std::to_string(obstacleCount) + ".map";
                     map.save(fileName.c_str());
                 }
-                catch (const std::exception& e){
-					std::cerr << "Error generating map with size " << size << "x" << size
-						<< ", agents: " << agents
-						<< ", obstacles: " << obstacleCount << e.what() << std::endl;
+                catch (const std::exception& e) {
+                    std::cerr << "Error generating map with size " << size << "x" << size
+                        << ", agents: " << agents
+                        << ", obstacles: " << obstacleCount << e.what() << std::endl;
                     continue;
                 }
 
