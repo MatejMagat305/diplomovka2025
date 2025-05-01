@@ -34,7 +34,7 @@ int init(const std::string& name) {
 
 int main() {
     std::vector<int> sizes = { 16, 24, 32, 64, 128, 256, 512, 1024 };
-    std::vector<int> agentCounts = { 2, 4, 8, 16, 32, 64 };
+    std::vector<int> agentCounts = { 3, 4, 8, 16, 32, 64 };
 
     for (int size : sizes) {
         for (int agents : agentCounts) {
