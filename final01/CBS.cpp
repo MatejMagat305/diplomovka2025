@@ -43,14 +43,16 @@ std::vector<Conflict> detectConflicts(const CBSNode& node) {
 }
 
 
-
 bool isIgnorableConflict(const Conflict& conflict, const CBSNode& node) {
     auto pathA = node.paths[conflict.agentA];
     auto pathB = node.paths[conflict.agentB];
-    if (conflict.timeStep == 0) return true;
-    if (pathA.size() <= conflict.timeStep || pathB.size() <= conflict.timeStep) return false;
-    bool agentAStanding = pathA[conflict.timeStep] == pathA[conflict.timeStep - 1];
-    bool agentBStanding = pathB[conflict.timeStep] == pathB[conflict.timeStep - 1];
+    bool agentAStanding = false;
+    bool agentBStanding = false;
+    if (pathA.size() <= conflict.timeStep || pathB.size() <= conflict.timeStep) return true;
+    if (conflict.timeStep > 0) {
+        bool agentAStanding = pathA[conflict.timeStep] == pathA[conflict.timeStep - 1];
+        bool agentBStanding = pathB[conflict.timeStep] == pathB[conflict.timeStep - 1];
+    }
 	if (pathA.size() > conflict.timeStep + 1) {
 		agentAStanding |= (pathA[conflict.timeStep] == pathA[conflict.timeStep + 1]);
 	}
