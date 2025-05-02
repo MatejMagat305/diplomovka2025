@@ -209,9 +209,9 @@ void processAgentCollisionsCPU(const MemoryPointers& globalMemory, MemoryPointer
             bool done = applyPathShift(localMemory, conflictFuturePos, agentID);
             if (done) {
                 int old = maxT.load(), value = a.sizePath;
-                std::cout << "old: " << old << " value: " << value << std::endl;
+                // std::cout << "old: " << old << " value: " << value << std::endl;
                 while (old < value && !maxT.compare_exchange_strong(old, value)) {}
-                std::cout << "old: " << old << " value: " << value << std::endl;
+                // std::cout << "old: " << old << " value: " << value << std::endl;
 			}
 			else {
 				err_flag.store(agentID + 1);
