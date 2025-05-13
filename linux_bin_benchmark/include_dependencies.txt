@@ -1,0 +1,2169 @@
+./parameterScene.h includes:
+  └── scene.h
+
+./changeScene.cpp includes:
+  └── algorithm
+  └── changeScene.h
+  └── fill_init_convert.h
+  └── mainScene.h
+  └── map.h
+  └── raygui.h
+  └── viewScene.h
+
+./simulationScene.cpp includes:
+  └── compute.h
+  └── fill_init_convert.h
+  └── infoScene.h
+  └── raygui.h
+  └── simulationScene.h
+  └── viewScene.h
+
+./CBS.cpp includes:
+  └── a_star_algo.h
+  └── compute.h
+  └── fill_init_convert.h
+  └── solve_conflicts.h
+
+./mainScene.h includes:
+  └── scene.h
+
+./fill_init_convert.h includes:
+  └── heap_primitive.h
+  └── map.h
+  └── sycl/sycl.hpp
+
+./compute.h includes:
+  └── device_type_algoritmus.h
+  └── map.h
+  └── queue
+  └── set
+  └── sycl/sycl.hpp
+  └── unordered_map
+  └── unordered_set
+  └── utility
+
+./fill_init_convert.cpp includes:
+  └── compute.h
+  └── fill_init_convert.h
+  └── sycl/sycl.hpp
+
+./changeScene.h includes:
+  └── map.h
+  └── scene.h
+
+./simulationScene.h includes:
+  └── map.h
+  └── memSimulation.h
+  └── mutex
+  └── scene.h
+
+./viewScene.cpp includes:
+  └── changeScene.h
+  └── mainScene.h
+  └── parameterScene.h
+  └── raygui.h
+  └── simulationScene.h
+  └── viewScene.h
+
+./viewScene.h includes:
+  └── map.h
+  └── scene.h
+
+./a_star_algo.cpp includes:
+  └── a_star_algo.h
+  └── algorithm
+  └── compute.h
+  └── fill_init_convert.h
+  └── memory
+  └── queue
+  └── unordered_map
+  └── unordered_set
+  └── vector
+
+./move_agent.cpp includes:
+  └── compute.h
+  └── map.h
+
+./map.cpp includes:
+  └── algorithm
+  └── ctime
+  └── filesystem
+  └── fill_init_convert.h
+  └── iostream
+  └── limits
+  └── map
+  └── map.h
+  └── queue
+  └── random
+  └── raygui.h
+  └── raylib.h
+  └── set
+  └── sstream
+  └── string
+  └── utility
+  └── vector
+
+./heap_primitive.cpp includes:
+  └── heap_primitive.h
+
+./solve_conflicts.h includes:
+  └── condition_variable
+  └── heap_primitive.h
+  └── iostream
+  └── map.h
+  └── mutex
+  └── sycl/sycl.hpp
+  └── thread
+  └── vector
+
+./gui.cpp includes:
+  └── algorithm
+  └── atomic
+  └── changeScene.h
+  └── compute.h
+  └── device_type_algoritmus.h
+  └── fill_init_convert.h
+  └── infoScene.h
+  └── iostream
+  └── loadScene.h
+  └── mainScene.h
+  └── map
+  └── map.h
+  └── memSimulation.h
+  └── mutex
+  └── parameterScene.h
+  └── raygui.h
+  └── raylib.h
+  └── scene.h
+  └── simulationScene.h
+  └── sstream
+  └── string
+  └── thread
+  └── vector
+  └── viewScene.h
+
+./map.h includes:
+  └── iostream
+  └── map
+  └── raylib.h
+  └── string
+  └── unordered_set
+  └── utility
+  └── vector
+
+./diplomovka02.cpp includes:
+  └── iostream
+  └── string
+  └── sycl/ext/intel/fpga_extensions.hpp
+  └── sycl/sycl.hpp
+  └── vector
+
+./loadScene.cpp includes:
+  └── loadScene.h
+  └── mainScene.h
+  └── map.h
+  └── raygui.h
+  └── viewScene.h
+
+./compute.cpp includes:
+  └── a_star_algo.h
+  └── fill_init_convert.h
+  └── heap_primitive.h
+  └── limits
+  └── map.h
+  └── solve_conflicts.h
+  └── sycl/sycl.hpp
+  └── thread
+
+./parameterScene.cpp includes:
+  └── iostream
+  └── map.h
+  └── parameterScene.h
+  └── raygui.h
+  └── raylib.h
+  └── scene.h
+  └── sstream
+  └── string
+  └── viewScene.h
+
+./device_type_algoritmus.h includes:
+  └── map.h
+
+./main.cpp includes:
+  └── compute.h
+  └── filesystem
+  └── fstream
+  └── iostream
+  └── mainScene.h
+  └── raygui.h
+  └── string
+  └── vector
+
+./a_star_algo.h includes:
+  └── device_type_algoritmus.h
+  └── map.h
+  └── sycl/sycl.hpp
+
+./infoScene.h includes:
+  └── device_type_algoritmus.h
+  └── memSimulation.h
+  └── scene.h
+
+./solve_conflicts.cpp includes:
+  └── a_star_algo.h
+  └── compute.h
+  └── fill_init_convert.h
+  └── heap_primitive.h
+  └── limits
+  └── map.h
+  └── thread
+
+./heap_primitive.h includes:
+  └── map.h
+  └── sycl/sycl.hpp
+
+./compute_sycl.cpp includes:
+  └── a_star_algo.h
+  └── chrono
+  └── fill_init_convert.h
+  └── heap_primitive.h
+  └── iostream
+  └── solve_conflicts.h
+  └── sstream
+  └── sycl/sycl.hpp
+
+./infoScene.cpp includes:
+  └── compute.h
+  └── infoScene.h
+  └── mainScene.h
+  └── raygui.h
+  └── simulationScene.h
+  └── sstream
+
+./loadScene.h includes:
+  └── map.h
+  └── scene.h
+
+./compute_cpu.cpp includes:
+  └── chrono
+  └── compute.h
+  └── fill_init_convert.h
+  └── heap_primitive.h
+  └── iostream
+  └── limits
+  └── queue
+  └── solve_conflicts.h
+  └── sstream
+  └── thread
+  └── tuple
+  └── unordered_map
+  └── vector
+
+./device_type_algoritmus.cpp includes:
+  └── chrono
+  └── compute.h
+  └── device_type_algoritmus.h
+
+./mainScene.cpp includes:
+  └── loadScene.h
+  └── mainScene.h
+  └── parameterScene.h
+  └── raygui.h
+  └── raylib.h
+
+./compute_c_plus.cpp includes:
+  └── a_star_algo.h
+  └── algorithm
+  └── chrono
+  └── compute.h
+  └── fill_init_convert.h
+  └── limits
+  └── queue
+  └── unordered_set
+
+./memSimulation.h includes:
+  └── atomic
+  └── device_type_algoritmus.h
+  └── map
+  └── map.h
+  └── mutex
+  └── thread
+  └── vector
+
+./raygui/examples/image_exporter/image_exporter.c includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+
+./raygui/examples/property_list/property_list.c includes:
+  └── ../../src/raygui.h
+  └── dm_property_list.h
+  └── raylib.h
+
+./raygui/examples/property_list/dm_property_list.h includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+  └── stdbool.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raygui/examples/custom_sliders/custom_sliders.c includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+
+./raygui/examples/custom_input_box/custom_input_box.c includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+
+./raygui/examples/image_importer_raw/image_importer_raw.c includes:
+  └── ../../src/raygui.h
+  └── math.h
+  └── raylib.h
+  └── stdlib.h
+  └── string.h
+
+./raygui/examples/style_selector/style_selector.c includes:
+  └── ../../src/raygui.h
+  └── ../styles/style_ashes.h
+  └── ../styles/style_bluish.h
+  └── ../styles/style_candy.h
+  └── ../styles/style_cherry.h
+  └── ../styles/style_cyber.h
+  └── ../styles/style_dark.h
+  └── ../styles/style_enefete.h
+  └── ../styles/style_jungle.h
+  └── ../styles/style_lavanda.h
+  └── ../styles/style_sunny.h
+  └── ../styles/style_terminal.h
+  └── raylib.h
+  └── string.h
+
+./raygui/examples/floating_window/floating_window.c includes:
+  └── ../../src/raygui.h
+  └── ../../styles/dark/style_dark.h
+  └── raylib.h
+
+./raygui/examples/portable_window/portable_window.c includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+
+./raygui/examples/controls_test_suite/controls_test_suite.c includes:
+  └── ../../src/raygui.h
+  └── ../styles/style_amber.h
+  └── ../styles/style_ashes.h
+  └── ../styles/style_bluish.h
+  └── ../styles/style_candy.h
+  └── ../styles/style_cherry.h
+  └── ../styles/style_cyber.h
+  └── ../styles/style_dark.h
+  └── ../styles/style_enefete.h
+  └── ../styles/style_jungle.h
+  └── ../styles/style_lavanda.h
+  └── ../styles/style_sunny.h
+  └── ../styles/style_terminal.h
+  └── raylib.h
+
+./raygui/examples/controls_test_suite/gui_value_box_float.c includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+  └── stdio.h
+
+./raygui/examples/animation_curve/animation_curve.c includes:
+  └── ../../src/raygui.h
+  └── ../styles/style_bluish.h
+  └── ../styles/style_cyber.h
+  └── ../styles/style_dark.h
+  └── ../styles/style_jungle.h
+  └── ../styles/style_lavanda.h
+  └── ../styles/style_terminal.h
+  └── gui_curve_editor.h
+  └── raylib.h
+
+./raygui/examples/animation_curve/gui_curve_editor.h includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+  └── stdlib.h
+
+./raygui/examples/scroll_panel/scroll_panel.c includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+
+./raygui/examples/standalone/raygui_standalone.c includes:
+  └── ../../src/raygui.h
+  └── custom_backend.h
+
+./raygui/examples/custom_file_dialog/custom_file_dialog.c includes:
+  └── ../../src/raygui.h
+  └── gui_window_file_dialog.h
+  └── raylib.h
+
+./raygui/examples/custom_file_dialog/gui_window_file_dialog.h includes:
+  └── ../../src/raygui.h
+  └── raylib.h
+  └── string.h
+
+./raygui/src/raygui.h includes:
+  └── ctype.h
+  └── math.h
+  └── raylib.h
+  └── stdarg.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/build/raylib/include/raylib.h includes:
+  └── stdarg.h
+  └── stdbool.h
+
+./raylib/build/raylib/include/rcamera.h includes:
+  └── raymath.h
+
+./raylib/build/raylib/include/raymath.h includes:
+  └── math.h
+
+./raylib/build/raylib/include/rlgl.h includes:
+  └── GL/gl.h
+  └── GLES2/gl2.h
+  └── GLES2/gl2ext.h
+  └── GLES3/gl3.h
+  └── OpenGL/gl.h
+  └── OpenGL/glext.h
+  └── external/glad.h
+  └── external/glad_gles2.h
+  └── math.h
+  └── stdbool.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/projects/CMake/core_basic_window.c includes:
+  └── emscripten/emscripten.h
+  └── raylib.h
+
+./raylib/projects/VS2019-Android/raylib_android/raylib_android.NativeActivity/android_native_app_glue.c includes:
+  └── android/log.h
+  └── android_native_app_glue.h
+  └── errno.h
+  └── jni.h
+  └── stdlib.h
+  └── string.h
+  └── sys/resource.h
+  └── unistd.h
+
+./raylib/projects/VS2019-Android/raylib_android/raylib_android.NativeActivity/android_native_app_glue.h includes:
+  └── android/configuration.h
+  └── android/looper.h
+  └── android/native_activity.h
+  └── poll.h
+  └── pthread.h
+  └── sched.h
+
+./raylib/projects/VS2019-Android/raylib_android/raylib_android.NativeActivity/main.c includes:
+  └── ../../../../src/raylib.h
+  └── android_native_app_glue.h
+
+./raylib/projects/CodeBlocks/core_basic_window.c includes:
+  └── raylib.h
+
+./raylib/projects/scripts/core_basic_window.c includes:
+  └── raylib.h
+
+./raylib/projects/Geany/core_basic_window.c includes:
+  └── raylib.h
+
+./raylib/projects/Notepad++/raylib_npp_parser/raylib_npp_parser.c includes:
+  └── stdbool.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/projects/4coder/main.c includes:
+  └── math.h
+  └── raylib.h
+
+./raylib/projects/VSCode/main.c includes:
+  └── emscripten/emscripten.h
+  └── raylib.h
+
+./raylib/examples/examples_template.c includes:
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_easings_ball_anim.c includes:
+  └── raylib.h
+  └── reasings.h
+
+./raylib/examples/shapes/shapes_collision_area.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/shapes/shapes_rectangle_scaling.c includes:
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_draw_rectangle_rounded.c includes:
+  └── raygui.h
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_rectangle_advanced.c includes:
+  └── math.h
+  └── raylib.h
+  └── rlgl.h
+
+./raylib/examples/shapes/shapes_basic_shapes.c includes:
+  └── raylib.h
+
+./raylib/examples/shapes/raygui.h includes:
+  └── ctype.h
+  └── math.h
+  └── raylib.h
+  └── stdarg.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/examples/shapes/shapes_draw_ring.c includes:
+  └── raygui.h
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_colors_palette.c includes:
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_logo_raylib.c includes:
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_easings_box_anim.c includes:
+  └── raylib.h
+  └── reasings.h
+
+./raylib/examples/shapes/shapes_easings_rectangle_array.c includes:
+  └── raylib.h
+  └── reasings.h
+
+./raylib/examples/shapes/shapes_logo_raylib_anim.c includes:
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_following_eyes.c includes:
+  └── math.h
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_bouncing_ball.c includes:
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_splines_drawing.c includes:
+  └── raygui.h
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/shapes/shapes_draw_circle_sector.c includes:
+  └── raygui.h
+  └── raylib.h
+
+./raylib/examples/shapes/reasings.h includes:
+  └── math.h
+
+./raylib/examples/shapes/shapes_lines_bezier.c includes:
+  └── raylib.h
+
+./raylib/examples/shapes/shapes_top_down_lights.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+
+./raylib/examples/textures/textures_bunnymark.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/textures/textures_image_loading.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_npatch_drawing.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_sprite_button.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_polygon.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+
+./raylib/examples/textures/textures_image_text.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_image_kernel.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_gif_player.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_sprite_explosion.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_mouse_painting.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_fog_of_war.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/textures/textures_draw_tiled.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_blend_modes.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_to_image.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_textured_curve.c includes:
+  └── math.h
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+  └── stdlib.h
+
+./raylib/examples/textures/textures_image_drawing.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_logo_raylib.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_particles_blending.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_image_channel.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_background_scrolling.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_image_generation.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_image_processing.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/textures/textures_raw_data.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/textures/textures_sprite_anim.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_srcrec_dstrec.c includes:
+  └── raylib.h
+
+./raylib/examples/textures/textures_image_rotate.c includes:
+  └── raylib.h
+
+./raylib/examples/audio/audio_music_stream.c includes:
+  └── raylib.h
+
+./raylib/examples/audio/audio_sound_loading.c includes:
+  └── raylib.h
+
+./raylib/examples/audio/audio_raw_stream.c includes:
+  └── math.h
+  └── raylib.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/examples/audio/audio_sound_positioning.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/audio/audio_module_playing.c includes:
+  └── raylib.h
+
+./raylib/examples/audio/audio_stream_effects.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/audio/audio_sound_multi.c includes:
+  └── raylib.h
+
+./raylib/examples/audio/audio_mixed_processor.c includes:
+  └── math.h
+  └── raylib.h
+
+./raylib/examples/core/core_3d_camera_mode.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_scissor_test.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_basic_window.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_world_screen.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_3d_camera_split_screen.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_3d_camera_free.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_2d_camera_platformer.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/core/core_input_gestures_web.c includes:
+  └── emscripten/emscripten.h
+  └── math.h
+  └── raylib.h
+
+./raylib/examples/core/core_high_dpi.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_custom_logging.c includes:
+  └── raylib.h
+  └── stdio.h
+  └── time.h
+
+./raylib/examples/core/core_2d_camera_split_screen.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_window_letterbox.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/core/core_window_should_close.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_3d_picking.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_3d_camera_first_person.c includes:
+  └── raylib.h
+  └── rcamera.h
+
+./raylib/examples/core/core_basic_window_web.c includes:
+  └── emscripten/emscripten.h
+  └── raylib.h
+
+./raylib/examples/core/core_custom_frame_control.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_input_keys.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_basic_screen_manager.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_input_gamepad.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_input_multitouch.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_vr_simulator.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_drop_files.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/core/core_automation_events.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/core/core_2d_camera_mouse_zoom.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+
+./raylib/examples/core/core_smooth_pixelperfect.c includes:
+  └── math.h
+  └── raylib.h
+
+./raylib/examples/core/core_window_flags.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_storage_values.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/core/core_random_sequence.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── stdlib.h
+
+./raylib/examples/core/core_loading_thread.c includes:
+  └── pthread.h
+  └── raylib.h
+  └── stdatomic.h
+  └── time.h
+
+./raylib/examples/core/core_input_mouse_wheel.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_input_virtual_controls.c includes:
+  └── math.h
+  └── raylib.h
+
+./raylib/examples/core/core_input_gestures.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_2d_camera.c includes:
+  └── math.h
+  └── raylib.h
+
+./raylib/examples/core/core_random_values.c includes:
+  └── raylib.h
+
+./raylib/examples/core/core_input_mouse.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_fog.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlights.h
+
+./raylib/examples/shaders/shaders_hot_reloading.c includes:
+  └── raylib.h
+  └── rlgl.h
+  └── time.h
+
+./raylib/examples/shaders/shaders_eratosthenes.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_view_depth.c includes:
+  └── raylib.h
+  └── rlgl.h
+
+./raylib/examples/shaders/shaders_lightmap.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+  └── stdio.h
+  └── stdlib.h
+
+./raylib/examples/shaders/shaders_texture_outline.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_julia_set.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_simple_mask.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/shaders/shaders_rounded_rectangle.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_vertex_displacement.c includes:
+  └── raylib.h
+  └── rlgl.h
+  └── rlights.h
+
+./raylib/examples/shaders/shaders_texture_drawing.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_texture_tiling.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_multi_sample2d.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_model_shader.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_shapes_textures.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_basic_lighting.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlights.h
+
+./raylib/examples/shaders/shaders_shadowmap.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+
+./raylib/examples/shaders/shaders_palette_switch.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_raymarching.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_deferred_render.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+  └── rlights.h
+  └── stdlib.h
+
+./raylib/examples/shaders/shaders_spotlight.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/shaders/shaders_basic_pbr.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/shaders/shaders_mesh_instancing.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlights.h
+  └── stdlib.h
+
+./raylib/examples/shaders/shaders_postprocessing.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_texture_waves.c includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_write_depth.c includes:
+  └── raylib.h
+  └── rlgl.h
+
+./raylib/examples/shaders/rlights.h includes:
+  └── raylib.h
+
+./raylib/examples/shaders/shaders_hybrid_render.c includes:
+  └── math.h
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+
+./raylib/examples/shaders/shaders_custom_uniform.c includes:
+  └── raylib.h
+
+./raylib/examples/text/text_raylib_fonts.c includes:
+  └── raylib.h
+
+./raylib/examples/text/text_writing_anim.c includes:
+  └── raylib.h
+
+./raylib/examples/text/text_unicode.c includes:
+  └── raylib.h
+  └── stdio.h
+  └── string.h
+
+./raylib/examples/text/text_format_text.c includes:
+  └── raylib.h
+
+./raylib/examples/text/text_font_loading.c includes:
+  └── raylib.h
+
+./raylib/examples/text/text_codepoints_loading.c includes:
+  └── raylib.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/examples/text/text_input_box.c includes:
+  └── raylib.h
+
+./raylib/examples/text/text_font_spritefont.c includes:
+  └── raylib.h
+
+./raylib/examples/text/text_font_sdf.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/text/text_draw_3d.c includes:
+  └── math.h
+  └── raylib.h
+  └── rlgl.h
+  └── stddef.h
+
+./raylib/examples/text/text_font_filters.c includes:
+  └── raylib.h
+
+./raylib/examples/text/text_rectangle_bounds.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_heightmap.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_mesh_picking.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/models/models_mesh_generation.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_gpu_skinning.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/models/models_waving_cubes.c includes:
+  └── math.h
+  └── raylib.h
+
+./raylib/examples/models/models_box_collisions.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_skybox.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+
+./raylib/examples/models/models_bone_socket.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/models/models_geometric_shapes.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_first_person_maze.c includes:
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/models/models_rlgl_solar_system.c includes:
+  └── math.h
+  └── raylib.h
+  └── rlgl.h
+
+./raylib/examples/models/models_loading_gltf.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_draw_cube_texture.c includes:
+  └── raylib.h
+  └── rlgl.h
+
+./raylib/examples/models/models_yaw_pitch_roll.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/models/models_loading_m3d.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_point_rendering.c includes:
+  └── math.h
+  └── raylib.h
+  └── stdlib.h
+
+./raylib/examples/models/models_billboard.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/models/models_tesseract_view.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/models/models_animation.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_loading.c includes:
+  └── raylib.h
+
+./raylib/examples/models/rlights.h includes:
+  └── raylib.h
+
+./raylib/examples/models/models_loading_vox.c includes:
+  └── raylib.h
+  └── raymath.h
+  └── rlights.h
+
+./raylib/examples/models/models_orthographic_projection.c includes:
+  └── raylib.h
+
+./raylib/examples/models/models_cubicmap.c includes:
+  └── raylib.h
+
+./raylib/examples/others/easings_testbed.c includes:
+  └── raylib.h
+  └── reasings.h
+
+./raylib/examples/others/rlgl_standalone.c includes:
+  └── GLFW/glfw3.h
+  └── raymath.h
+  └── rlgl.h
+  └── stdio.h
+
+./raylib/examples/others/raymath_vector_angle.c includes:
+  └── raylib.h
+  └── raymath.h
+
+./raylib/examples/others/rlgl_compute_shader.c includes:
+  └── raylib.h
+  └── rlgl.h
+  └── stdlib.h
+
+./raylib/examples/others/raylib_opengl_interop.c includes:
+  └── OpenGL/gl3.h
+  └── OpenGL/gl3ext.h
+  └── glad.h
+  └── glad_gles2.h
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+
+./raylib/examples/others/embedded_files_loading.c includes:
+  └── raylib.h
+  └── resources/audio_data.h
+  └── resources/image_data.h
+
+./raylib/examples/others/reasings.h includes:
+  └── math.h
+
+./raylib/examples/others/external/include/glad.h includes:
+  └── inttypes.h
+  └── stddef.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/examples/others/external/include/glad_gles2.h includes:
+  └── inttypes.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── winapifamily.h
+
+./raylib/examples/others/external/include/GLFW/glfw3native.h includes:
+  └── ApplicationServices/ApplicationServices.h
+  └── EGL/egl.h
+  └── GL/glx.h
+  └── GL/osmesa.h
+  └── X11/Xlib.h
+  └── X11/extensions/Xrandr.h
+  └── objc/objc.h
+  └── wayland-client.h
+  └── windows.h
+
+./raylib/examples/others/external/include/GLFW/glfw3.h includes:
+  └── GL/gl.h
+  └── GL/glcorearb.h
+  └── GL/glext.h
+  └── GL/glu.h
+  └── GLES/gl.h
+  └── GLES/glext.h
+  └── GLES2/gl2.h
+  └── GLES2/gl2ext.h
+  └── GLES3/gl3.h
+  └── GLES3/gl31.h
+  └── GLES3/gl32.h
+  └── OpenGL/gl.h
+  └── OpenGL/gl3.h
+  └── OpenGL/gl3ext.h
+  └── OpenGL/glu.h
+  └── stddef.h
+  └── stdint.h
+  └── vulkan/vulkan.h
+
+./raylib/src/utils.h includes:
+  └── android/asset_manager.h
+  └── stdio.h
+
+./raylib/src/raylib.h includes:
+  └── stdarg.h
+  └── stdbool.h
+
+./raylib/src/rcamera.h includes:
+  └── raymath.h
+
+./raylib/src/raymath.h includes:
+  └── math.h
+
+./raylib/src/rtext.c includes:
+  └── config.h
+  └── ctype.h
+  └── external/stb_rect_pack.h
+  └── external/stb_truetype.h
+  └── math.h
+  └── raylib.h
+  └── rlgl.h
+  └── stdarg.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── utils.h
+
+./raylib/src/raudio.c includes:
+  └── config.h
+  └── external/dr_flac.h
+  └── external/dr_mp3.h
+  └── external/dr_wav.h
+  └── external/jar_mod.h
+  └── external/jar_xm.h
+  └── external/miniaudio.h
+  └── external/qoa.h
+  └── external/qoaplay.c
+  └── external/stb_vorbis.c
+  └── mmreg.h
+  └── mmsystem.h
+  └── objbase.h
+  └── propidl.h
+  └── raudio.h
+  └── raylib.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── utils.h
+  └── windows.h
+
+./raylib/src/rcore.c includes:
+  └── config.h
+  └── direct.h
+  └── dirent.h
+  └── external/dirent.h
+  └── external/msf_gif.h
+  └── external/rprand.h
+  └── external/sdefl.h
+  └── external/sinfl.h
+  └── io.h
+  └── mach-o/dyld.h
+  └── math.h
+  └── platforms/rcore_android.c
+  └── platforms/rcore_desktop_glfw.c
+  └── platforms/rcore_desktop_rgfw.c
+  └── platforms/rcore_desktop_sdl.c
+  └── platforms/rcore_drm.c
+  └── platforms/rcore_web.c
+  └── raylib.h
+  └── raymath.h
+  └── rcamera.h
+  └── rgestures.h
+  └── rlgl.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── sys/stat.h
+  └── sys/sysctl.h
+  └── sys/syslimits.h
+  └── sys/types.h
+  └── time.h
+  └── unistd.h
+  └── utils.h
+
+./raylib/src/rtextures.c includes:
+  └── config.h
+  └── external/qoi.h
+  └── external/rl_gputex.h
+  └── external/stb_image.h
+  └── external/stb_image_resize2.h
+  └── external/stb_image_write.h
+  └── external/stb_perlin.h
+  └── math.h
+  └── raylib.h
+  └── rlgl.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── utils.h
+
+./raylib/src/rshapes.c includes:
+  └── config.h
+  └── float.h
+  └── math.h
+  └── raylib.h
+  └── rlgl.h
+  └── stdlib.h
+
+./raylib/src/rglfw.c includes:
+  └── external/glfw/src/cocoa_init.m
+  └── external/glfw/src/cocoa_joystick.m
+  └── external/glfw/src/cocoa_monitor.m
+  └── external/glfw/src/cocoa_time.c
+  └── external/glfw/src/cocoa_window.m
+  └── external/glfw/src/context.c
+  └── external/glfw/src/egl_context.c
+  └── external/glfw/src/glx_context.c
+  └── external/glfw/src/init.c
+  └── external/glfw/src/input.c
+  └── external/glfw/src/linux_joystick.c
+  └── external/glfw/src/monitor.c
+  └── external/glfw/src/nsgl_context.m
+  └── external/glfw/src/null_joystick.c
+  └── external/glfw/src/osmesa_context.c
+  └── external/glfw/src/platform.c
+  └── external/glfw/src/posix_module.c
+  └── external/glfw/src/posix_poll.c
+  └── external/glfw/src/posix_thread.c
+  └── external/glfw/src/posix_time.c
+  └── external/glfw/src/vulkan.c
+  └── external/glfw/src/wgl_context.c
+  └── external/glfw/src/win32_init.c
+  └── external/glfw/src/win32_joystick.c
+  └── external/glfw/src/win32_module.c
+  └── external/glfw/src/win32_monitor.c
+  └── external/glfw/src/win32_thread.c
+  └── external/glfw/src/win32_time.c
+  └── external/glfw/src/win32_window.c
+  └── external/glfw/src/window.c
+  └── external/glfw/src/wl_init.c
+  └── external/glfw/src/wl_monitor.c
+  └── external/glfw/src/wl_window.c
+  └── external/glfw/src/x11_init.c
+  └── external/glfw/src/x11_monitor.c
+  └── external/glfw/src/x11_window.c
+  └── external/glfw/src/xkb_unicode.c
+
+./raylib/src/rgestures.h includes:
+  └── mach/clock.h
+  └── mach/mach.h
+  └── math.h
+  └── stdbool.h
+  └── sys/time.h
+  └── time.h
+
+./raylib/src/rlgl.h includes:
+  └── GL/gl.h
+  └── GLES2/gl2.h
+  └── GLES2/gl2ext.h
+  └── GLES3/gl3.h
+  └── OpenGL/gl.h
+  └── OpenGL/glext.h
+  └── external/glad.h
+  └── external/glad_gles2.h
+  └── math.h
+  └── stdbool.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/rmodels.c includes:
+  └── config.h
+  └── direct.h
+  └── external/cgltf.h
+  └── external/m3d.h
+  └── external/par_shapes.h
+  └── external/tinyobj_loader_c.h
+  └── external/vox_loader.h
+  └── math.h
+  └── raylib.h
+  └── raymath.h
+  └── rlgl.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── unistd.h
+  └── utils.h
+
+./raylib/src/utils.c includes:
+  └── android/asset_manager.h
+  └── android/log.h
+  └── config.h
+  └── errno.h
+  └── raylib.h
+  └── stdarg.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── utils.h
+
+./raylib/src/platforms/rcore_web.c includes:
+  └── GLFW/glfw3.h
+  └── emscripten/emscripten.h
+  └── emscripten/html5.h
+  └── sys/time.h
+
+./raylib/src/platforms/rcore_desktop_rgfw.c includes:
+  └── ../external/RGFW.h
+  └── ../external/win32_clipboard.h
+  └── ../rcore.c
+  └── raylib.h
+  └── stdbool.h
+  └── string.h
+
+./raylib/src/platforms/rcore_desktop_sdl.c includes:
+  └── SDL.h
+  └── SDL_opengl.h
+
+./raylib/src/platforms/rcore_android.c includes:
+  └── EGL/egl.h
+  └── android/window.h
+  └── android_native_app_glue.h
+  └── jni.h
+
+./raylib/src/platforms/rcore_drm.c includes:
+  └── EGL/egl.h
+  └── EGL/eglext.h
+  └── dirent.h
+  └── fcntl.h
+  └── gbm.h
+  └── linux/input.h
+  └── linux/joystick.h
+  └── linux/kd.h
+  └── pthread.h
+  └── sys/ioctl.h
+  └── termios.h
+  └── unistd.h
+  └── xf86drm.h
+  └── xf86drmMode.h
+
+./raylib/src/platforms/rcore_desktop_glfw.c includes:
+  └── ../external/win32_clipboard.h
+  └── GLFW/glfw3.h
+  └── GLFW/glfw3native.h
+  └── stddef.h
+  └── sys/time.h
+  └── unistd.h
+
+./raylib/src/external/glad.h includes:
+  └── inttypes.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── winapifamily.h
+
+./raylib/src/external/m3d.h includes:
+  └── locale.h
+  └── memory
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string
+  └── string.h
+  └── sys/time.h
+  └── vector
+
+./raylib/src/external/jar_mod.h includes:
+  └── stdio.h
+  └── stdlib.h
+
+./raylib/src/external/jar_xm.h includes:
+  └── limits.h
+  └── math.h
+  └── raylib.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/dirent.h includes:
+  └── errno.h
+  └── io.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/stb_vorbis.c includes:
+  └── alloca.h
+  └── assert.h
+  └── crtdbg.h
+  └── limits.h
+  └── malloc.h
+  └── math.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/win32_clipboard.h includes:
+  └── assert.h
+  └── minwindef.h
+  └── stdbool.h
+  └── stdio.h
+  └── stdlib.h
+
+./raylib/src/external/dr_wav.h includes:
+  └── assert.h
+  └── dr_wav.h
+  └── errno.h
+  └── limits.h
+  └── stddef.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── wchar.h
+
+./raylib/src/external/stb_image.h includes:
+  └── arm_neon.h
+  └── assert.h
+  └── emmintrin.h
+  └── intrin.h
+  └── limits.h
+  └── math.h
+  └── stb_image.h
+  └── stdarg.h
+  └── stddef.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/vox_loader.h includes:
+  └── stdlib.h
+  └── string.h
+  └── vox_loader.h
+
+./raylib/src/external/RGFW.h includes:
+  └── ApplicationServices/ApplicationServices.h
+  └── CoreGraphics/CoreGraphics.h
+  └── CoreVideo/CoreVideo.h
+  └── EGL/egl.h
+  └── GL/gl.h
+  └── GL/glx.h
+  └── GL/osmesa.h
+  └── IOKit/IOKitLib.h
+  └── IOKit/hid/IOHIDManager.h
+  └── OpenGL/OpenGL.h
+  └── OpenGL/gl.h
+  └── OpenGL/osmesa.h
+  └── RGFW.h
+  └── X11/XKBlib.h
+  └── X11/Xatom.h
+  └── X11/Xcursor/Xcursor.h
+  └── X11/Xlib.h
+  └── X11/Xresource.h
+  └── X11/Xutil.h
+  └── X11/cursorfont.h
+  └── X11/extensions/XInput2.h
+  └── X11/extensions/Xrandr.h
+  └── X11/extensions/shape.h
+  └── X11/extensions/shapeconst.h
+  └── X11/keysymdef.h
+  └── XDL.h
+  └── XInput.h
+  └── assert.h
+  └── dirent.h
+  └── dlfcn.h
+  └── dxgi.h
+  └── emscripten/html5.h
+  └── emscripten/html5_webgpu.h
+  └── emscripten/key_codes.h
+  └── errno.h
+  └── fcntl.h
+  └── limits.h
+  └── linux/joystick.h
+  └── linux/kd.h
+  └── locale.h
+  └── mach/mach_time.h
+  └── objc/message.h
+  └── objc/runtime.h
+  └── poll.h
+  └── processthreadsapi.h
+  └── pthread.h
+  └── shellapi.h
+  └── shellscalingapi.h
+  └── stddef.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── sys/mman.h
+  └── sys/stat.h
+  └── sys/types.h
+  └── time.h
+  └── unistd.h
+  └── vulkan/vulkan.h
+  └── wayland-client.h
+  └── wayland-cursor.h
+  └── wayland-egl.h
+  └── wchar.h
+  └── windows.h
+  └── windowsx.h
+  └── winuser.h
+  └── xdg-decoration-unstable-v1.h
+  └── xdg-shell.h
+  └── xinput.h
+  └── xkbcommon/xkbcommon-keysyms.h
+  └── xkbcommon/xkbcommon.h
+
+./raylib/src/external/stb_image_write.h includes:
+  └── assert.h
+  └── math.h
+  └── stdarg.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/par_shapes.h includes:
+  └── assert.h
+  └── errno.h
+  └── float.h
+  └── math.h
+  └── stdbool.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/stb_truetype.h includes:
+  └── assert.h
+  └── math.h
+  └── stb_truetype.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glad_gles2.h includes:
+  └── inttypes.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── winapifamily.h
+
+./raylib/src/external/dr_flac.h includes:
+  └── arm_neon.h
+  └── assert.h
+  └── dr_flac.h
+  └── emmintrin.h
+  └── endian.h
+  └── errno.h
+  └── intrin.h
+  └── intrinsics.h
+  └── smmintrin.h
+  └── stddef.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── wchar.h
+
+./raylib/src/external/dr_mp3.h includes:
+  └── arm_neon.h
+  └── assert.h
+  └── dr_mp3.h
+  └── emmintrin.h
+  └── errno.h
+  └── intrin.h
+  └── limits.h
+  └── stddef.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── wchar.h
+
+./raylib/src/external/stb_image_resize2.h includes:
+  └── arm_neon.h
+  └── assert.h
+  └── emmintrin.h
+  └── immintrin.h
+  └── math.h
+  └── smmintrin.h
+  └── stddef.h
+  └── stdint.h
+  └── stdlib.h
+  └── string.h
+  └── wasm_simd128.h
+
+./raylib/src/external/cgltf.h includes:
+  └── assert.h
+  └── float.h
+  └── limits.h
+  └── stddef.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/sdefl.h includes:
+  └── assert.h
+  └── limits.h
+  └── string.h
+
+./raylib/src/external/stb_rect_pack.h includes:
+  └── assert.h
+  └── stdlib.h
+
+./raylib/src/external/qoi.h includes:
+  └── qoi.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/stb_perlin.h includes:
+  └── math.h
+
+./raylib/src/external/sinfl.h includes:
+  └── arm_neon.h
+  └── assert.h
+  └── emmintrin.h
+  └── string.h
+
+./raylib/src/external/rprand.h includes:
+  └── stdint.h
+  └── stdlib.h
+
+./raylib/src/external/msf_gif.h includes:
+  └── emmintrin.h
+  └── intrin.h
+  └── msf_gif.h
+  └── stddef.h
+  └── stdint.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/miniaudio.h includes:
+  └── AVFoundation/AVFoundation.h
+  └── AudioToolbox/AudioToolbox.h
+  └── CoreAudio/CoreAudio.h
+  └── SLES/OpenSLES.h
+  └── SLES/OpenSLES_Android.h
+  └── TargetConditionals.h
+  └── alsa/asoundlib.h
+  └── android/log.h
+  └── arm_neon.h
+  └── assert.h
+  └── audioclient.h
+  └── dlfcn.h
+  └── emmintrin.h
+  └── emscripten/emscripten.h
+  └── emscripten/webaudio.h
+  └── endian.h
+  └── errno.h
+  └── fcntl.h
+  └── float.h
+  └── immintrin.h
+  └── intrin.h
+  └── intrinsics.h
+  └── jack/jack.h
+  └── limits.h
+  └── mach/mach_time.h
+  └── math.h
+  └── miniaudio.h
+  └── mmdeviceapi.h
+  └── poll.h
+  └── pthread.h
+  └── pulse/pulseaudio.h
+  └── sched.h
+  └── smmintrin.h
+  └── stdalign.h
+  └── stdarg.h
+  └── stddef.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── strings.h
+  └── sys/audioio.h
+  └── sys/eventfd.h
+  └── sys/ioctl.h
+  └── sys/param.h
+  └── sys/soundcard.h
+  └── sys/stat.h
+  └── sys/system_properties.h
+  └── sys/time.h
+  └── sys/types.h
+  └── time.h
+  └── unistd.h
+  └── wchar.h
+  └── windows.h
+
+./raylib/src/external/tinyobj_loader_c.h includes:
+  └── assert.h
+  └── errno.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/qoa.h includes:
+  └── stdio.h
+  └── stdlib.h
+
+./raylib/src/external/glfw/include/GLFW/glfw3native.h includes:
+  └── ApplicationServices/ApplicationServices.h
+  └── EGL/egl.h
+  └── GL/glx.h
+  └── GL/osmesa.h
+  └── X11/Xlib.h
+  └── X11/extensions/Xrandr.h
+  └── objc/objc.h
+  └── wayland-client.h
+  └── windows.h
+
+./raylib/src/external/glfw/include/GLFW/glfw3.h includes:
+  └── GL/gl.h
+  └── GL/glcorearb.h
+  └── GL/glext.h
+  └── GL/glu.h
+  └── GLES/gl.h
+  └── GLES/glext.h
+  └── GLES2/gl2.h
+  └── GLES2/gl2ext.h
+  └── GLES3/gl3.h
+  └── GLES3/gl31.h
+  └── GLES3/gl32.h
+  └── OpenGL/gl.h
+  └── OpenGL/gl3.h
+  └── OpenGL/gl3ext.h
+  └── OpenGL/glu.h
+  └── stddef.h
+  └── stdint.h
+  └── vulkan/vulkan.h
+
+./raylib/src/external/glfw/deps/getopt.c includes:
+  └── getopt.h
+  └── stddef.h
+  └── string.h
+
+./raylib/src/external/glfw/deps/mingw/xinput.h includes:
+  └── windef.h
+
+./raylib/src/external/glfw/deps/mingw/dinput.h includes:
+  └── _mingw_dxhelper.h
+  └── objbase.h
+
+./raylib/src/external/glfw/deps/glad/vulkan.h includes:
+  └── stddef.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── winapifamily.h
+
+./raylib/src/external/glfw/deps/glad/gles2.h includes:
+  └── inttypes.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── winapifamily.h
+
+./raylib/src/external/glfw/deps/glad/gl.h includes:
+  └── inttypes.h
+  └── stdint.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── winapifamily.h
+
+./raylib/src/external/glfw/src/posix_module.c includes:
+  └── dlfcn.h
+  └── internal.h
+
+./raylib/src/external/glfw/src/platform.c includes:
+  └── internal.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/x11_init.c includes:
+  └── assert.h
+  └── errno.h
+  └── fcntl.h
+  └── internal.h
+  └── limits.h
+  └── locale.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── unistd.h
+
+./raylib/src/external/glfw/src/vulkan.c includes:
+  └── assert.h
+  └── internal.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/input.c includes:
+  └── assert.h
+  └── float.h
+  └── internal.h
+  └── mappings.h
+  └── math.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/win32_joystick.c includes:
+  └── internal.h
+  └── math.h
+  └── stdio.h
+
+./raylib/src/external/glfw/src/null_init.c includes:
+  └── internal.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/egl_context.c includes:
+  └── assert.h
+  └── internal.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/cocoa_platform.h includes:
+  └── Carbon/Carbon.h
+  └── IOKit/hid/IOHIDLib.h
+  └── stdint.h
+
+./raylib/src/external/glfw/src/x11_window.c includes:
+  └── X11/Xmd.h
+  └── X11/cursorfont.h
+  └── assert.h
+  └── errno.h
+  └── internal.h
+  └── limits.h
+  └── poll.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/win32_module.c includes:
+  └── internal.h
+
+./raylib/src/external/glfw/src/linux_joystick.h includes:
+  └── linux/input.h
+  └── linux/limits.h
+  └── regex.h
+
+./raylib/src/external/glfw/src/posix_poll.c includes:
+  └── errno.h
+  └── internal.h
+  └── signal.h
+  └── time.h
+
+./raylib/src/external/glfw/src/posix_thread.h includes:
+  └── pthread.h
+
+./raylib/src/external/glfw/src/win32_thread.h includes:
+  └── windows.h
+
+./raylib/src/external/glfw/src/x11_platform.h includes:
+  └── X11/XKBlib.h
+  └── X11/Xatom.h
+  └── X11/Xcursor/Xcursor.h
+  └── X11/Xlib.h
+  └── X11/Xresource.h
+  └── X11/extensions/XInput2.h
+  └── X11/extensions/Xinerama.h
+  └── X11/extensions/Xrandr.h
+  └── X11/extensions/shape.h
+  └── X11/keysym.h
+  └── posix_poll.h
+  └── signal.h
+  └── stdint.h
+  └── unistd.h
+  └── xkb_unicode.h
+
+./raylib/src/external/glfw/src/posix_time.c includes:
+  └── internal.h
+  └── sys/time.h
+  └── unistd.h
+
+./raylib/src/external/glfw/src/win32_thread.c includes:
+  └── assert.h
+  └── internal.h
+
+./raylib/src/external/glfw/src/win32_window.c includes:
+  └── internal.h
+  └── limits.h
+  └── shellapi.h
+  └── stdlib.h
+  └── string.h
+  └── windowsx.h
+
+./raylib/src/external/glfw/src/context.c includes:
+  └── assert.h
+  └── internal.h
+  └── limits.h
+  └── stdio.h
+  └── string.h
+
+./raylib/src/external/glfw/src/glx_context.c includes:
+  └── assert.h
+  └── internal.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/win32_time.c includes:
+  └── internal.h
+
+./raylib/src/external/glfw/src/null_window.c includes:
+  └── internal.h
+  └── stdlib.h
+
+./raylib/src/external/glfw/src/posix_poll.h includes:
+  └── poll.h
+
+./raylib/src/external/glfw/src/monitor.c includes:
+  └── assert.h
+  └── float.h
+  └── internal.h
+  └── limits.h
+  └── math.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/osmesa_context.c includes:
+  └── assert.h
+  └── internal.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/wl_platform.h includes:
+  └── posix_poll.h
+  └── stdbool.h
+  └── wayland-client-core.h
+  └── xkb_unicode.h
+  └── xkbcommon/xkbcommon-compose.h
+  └── xkbcommon/xkbcommon.h
+
+./raylib/src/external/glfw/src/window.c includes:
+  └── assert.h
+  └── float.h
+  └── internal.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/wl_init.c includes:
+  └── assert.h
+  └── errno.h
+  └── fractional-scale-v1-client-protocol-code.h
+  └── fractional-scale-v1-client-protocol.h
+  └── idle-inhibit-unstable-v1-client-protocol-code.h
+  └── idle-inhibit-unstable-v1-client-protocol.h
+  └── internal.h
+  └── limits.h
+  └── linux/input.h
+  └── pointer-constraints-unstable-v1-client-protocol-code.h
+  └── pointer-constraints-unstable-v1-client-protocol.h
+  └── relative-pointer-unstable-v1-client-protocol-code.h
+  └── relative-pointer-unstable-v1-client-protocol.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── sys/mman.h
+  └── sys/timerfd.h
+  └── time.h
+  └── unistd.h
+  └── viewporter-client-protocol-code.h
+  └── viewporter-client-protocol.h
+  └── wayland-client-protocol-code.h
+  └── wayland-client-protocol.h
+  └── xdg-activation-v1-client-protocol-code.h
+  └── xdg-activation-v1-client-protocol.h
+  └── xdg-decoration-unstable-v1-client-protocol-code.h
+  └── xdg-decoration-unstable-v1-client-protocol.h
+  └── xdg-shell-client-protocol-code.h
+  └── xdg-shell-client-protocol.h
+
+./raylib/src/external/glfw/src/wl_window.c includes:
+  └── assert.h
+  └── errno.h
+  └── fcntl.h
+  └── fractional-scale-v1-client-protocol.h
+  └── idle-inhibit-unstable-v1-client-protocol.h
+  └── internal.h
+  └── linux/input-event-codes.h
+  └── pointer-constraints-unstable-v1-client-protocol.h
+  └── poll.h
+  └── relative-pointer-unstable-v1-client-protocol.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── sys/mman.h
+  └── sys/timerfd.h
+  └── unistd.h
+  └── viewporter-client-protocol.h
+  └── wayland-client-protocol.h
+  └── xdg-activation-v1-client-protocol.h
+  └── xdg-decoration-unstable-v1-client-protocol.h
+  └── xdg-shell-client-protocol.h
+
+./raylib/src/external/glfw/src/win32_time.h includes:
+  └── windows.h
+
+./raylib/src/external/glfw/src/xkb_unicode.c includes:
+  └── internal.h
+
+./raylib/src/external/glfw/src/cocoa_time.c includes:
+  └── internal.h
+  └── mach/mach_time.h
+
+./raylib/src/external/glfw/src/internal.h includes:
+  └── ../include/GLFW/glfw3.h
+  └── ../include/GLFW/glfw3native.h
+  └── glfw_config.h
+  └── platform.h
+
+./raylib/src/external/glfw/src/platform.h includes:
+  └── cocoa_joystick.h
+  └── cocoa_platform.h
+  └── cocoa_time.h
+  └── linux_joystick.h
+  └── null_joystick.h
+  └── null_platform.h
+  └── posix_thread.h
+  └── posix_time.h
+  └── win32_joystick.h
+  └── win32_platform.h
+  └── win32_thread.h
+  └── win32_time.h
+  └── wl_platform.h
+  └── x11_platform.h
+
+./raylib/src/external/glfw/src/cocoa_joystick.h includes:
+  └── IOKit/IOCFPlugIn.h
+  └── IOKit/IOKitLib.h
+  └── IOKit/hid/IOHIDKeys.h
+
+./raylib/src/external/glfw/src/posix_time.h includes:
+  └── stdint.h
+  └── time.h
+
+./raylib/src/external/glfw/src/wgl_context.c includes:
+  └── assert.h
+  └── internal.h
+  └── stdlib.h
+
+./raylib/src/external/glfw/src/null_joystick.c includes:
+  └── internal.h
+
+./raylib/src/external/glfw/src/wl_monitor.c includes:
+  └── errno.h
+  └── internal.h
+  └── math.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── wayland-client-protocol.h
+
+./raylib/src/external/glfw/src/win32_monitor.c includes:
+  └── internal.h
+  └── limits.h
+  └── stdlib.h
+  └── string.h
+  └── wchar.h
+
+./raylib/src/external/glfw/src/linux_joystick.c includes:
+  └── dirent.h
+  └── errno.h
+  └── fcntl.h
+  └── internal.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+  └── sys/inotify.h
+  └── sys/stat.h
+  └── sys/types.h
+  └── unistd.h
+
+./raylib/src/external/glfw/src/posix_thread.c includes:
+  └── assert.h
+  └── internal.h
+  └── string.h
+
+./raylib/src/external/glfw/src/init.c includes:
+  └── assert.h
+  └── internal.h
+  └── stdarg.h
+  └── stdio.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/x11_monitor.c includes:
+  └── internal.h
+  └── limits.h
+  └── math.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/win32_init.c includes:
+  └── internal.h
+  └── stdlib.h
+
+./raylib/src/external/glfw/src/null_monitor.c includes:
+  └── internal.h
+  └── math.h
+  └── stdlib.h
+  └── string.h
+
+./raylib/src/external/glfw/src/win32_platform.h includes:
+  └── dbt.h
+  └── dinput.h
+  └── dwmapi.h
+  └── wctype.h
+  └── windows.h
+  └── xinput.h
+
+./raylib/parser/raylib_parser.c includes:
+  └── ctype.h
+  └── stdbool.h
+  └── stdio.h
+  └── stdlib.h
+

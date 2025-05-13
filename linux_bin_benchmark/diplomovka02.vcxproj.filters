@@ -1,0 +1,145 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Resource Compute">
+      <UniqueIdentifier>{71e5cb6c-7d52-4296-8c72-60a6a82a7f09}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header compute">
+      <UniqueIdentifier>{763b7c94-0985-41e0-9cfc-a46c761acb68}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="sumary Files">
+      <UniqueIdentifier>{767d3cf3-e8f7-412e-a100-ec99698547f7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="viewScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="parameterScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="changeScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="compute_cpu.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="compute_sycl.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="simulationScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="compute_c_plus.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="loadScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="mainScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="heap_primitive.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="move_agent.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="infoScene.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="fill_init_convert.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="device_type_algoritmus.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="a_star_algo.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="CBS.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+    <ClCompile Include="compute.cpp">
+      <Filter>sumary Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gui.cpp">
+      <Filter>sumary Files</Filter>
+    </ClCompile>
+    <ClCompile Include="map.cpp">
+      <Filter>Resource Files</Filter>
+    </ClCompile>
+    <ClCompile Include="solve_conflicts.cpp">
+      <Filter>Resource Compute</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="fill_init_convert.h">
+      <Filter>Header compute</Filter>
+    </ClInclude>
+    <ClInclude Include="heap_primitive.h">
+      <Filter>Header compute</Filter>
+    </ClInclude>
+    <ClInclude Include="solve_conflicts.h">
+      <Filter>Header compute</Filter>
+    </ClInclude>
+    <ClInclude Include="compute.h">
+      <Filter>Header compute</Filter>
+    </ClInclude>
+    <ClInclude Include="scene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="simulationScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="memSimulation.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="parameterScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="map.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="mainScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="loadScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="infoScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="changeScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="viewScene.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="device_type_algoritmus.h">
+      <Filter>Header compute</Filter>
+    </ClInclude>
+    <ClInclude Include="a_star_algo.h">
+      <Filter>Header compute</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="plot.py" />
+    <None Include="scan_includes.py" />
+  </ItemGroup>
+</Project>
